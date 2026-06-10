@@ -1,8 +1,5 @@
 package agent
 
-
-package main
-
 import (
 	"context"
 	"log"
@@ -31,7 +28,7 @@ func ClientAgent(contents string) {
 		"gemini-3.5-flash",
 		genai.Text(contents),
 		&genai.GenerateContentConfig{
-			Temperature: 0.1,
+			Temperature:      0.1,
 			ResponseMIMEType: "application/json", // Crucial for reliable parsing
 			SystemInstruction: &genai.Content{
 				Parts: []*genai.Part{
