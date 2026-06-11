@@ -22,4 +22,6 @@ import WorkspaceSelector from './components/WorkspaceSelector.vue';
 import { useWorkspace } from './store/workspace.ts';
 
 const store = useWorkspace();
+
+
 </script>
