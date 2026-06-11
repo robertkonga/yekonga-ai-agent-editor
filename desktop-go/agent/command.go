@@ -3,21 +3,17 @@ package agent
 import (
 	"context"
 	"log"
-	"os"
 
 	"google.golang.org/genai"
 )
 
-func ClientAgent(contents string) {
+func (a *Agent) ClientAgent(contents string) {
 	ctx := context.Background()
 
-	instructionBytes, err := os.ReadFile("instruction.md")
-	if err != nil {
-		log.Fatal(err)
-	}
+	instructionString := a.getSystemInstruction("instruction")
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		APIKey: os.Getenv("GEMINI_API_KEY"),
+		APIKey: a.ApiKey,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -32,7 +28,7 @@ func ClientAgent(contents string) {
 			ResponseMIMEType: "application/json", // Crucial for reliable parsing
 			SystemInstruction: &genai.Content{
 				Parts: []*genai.Part{
-					genai.NewPartFromText(string(instructionBytes)),
+					genai.NewPartFromText(instructionString),
 				},
 			},
 		},

@@ -6,10 +6,9 @@ import (
 	"fmt"
 )
 
-const schemaSystemPrompt = ``
-
-func (a *App) GenerateSchema(description string) (string, error) {
-	client := newLLMClient(a.config.AnthropicAPIKey)
+func (a *Agent) GenerateSchema(description string) (string, error) {
+	schemaSystemPrompt := a.getSystemInstruction("instruction")
+	client := newLLMClient(a.ApiKey)
 
 	ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
 	defer cancel()

@@ -12,8 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"yekonga-builder/types"
 )
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -47,30 +46,6 @@ Rules:
 - Every file must contain complete, working content — no placeholders or TODOs.
 - Include all config files required to run the project (package.json, tsconfig, go.mod, etc.).
 - Follow the user's specified framework, language, and conventions exactly.`
-
-// ── Public types ─────────────────────────────────────────────────────────────
-
-// ScaffoldFile is a single file in the generated project plan.
-type ScaffoldFile struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
-}
-
-// ScaffoldPlan is the full structured response from the LLM.
-type ScaffoldPlan struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	Files       []ScaffoldFile `json:"files"`
-}
-
-// ScaffoldProgress is emitted to the frontend after each file is written.
-type ScaffoldProgress struct {
-	File  string `json:"file"`
-	Index int    `json:"index"`
-	Total int    `json:"total"`
-	Done  bool   `json:"done"`
-	Error string `json:"error,omitempty"`
-}
 
 // ── Internal Anthropic types ──────────────────────────────────────────────────
 
@@ -192,9 +167,9 @@ func (c *llmClient) complete(ctx context.Context, system, userPrompt string) (st
 
 // ── Plan parsing ─────────────────────────────────────────────────────────────
 
-// parsePlan extracts and validates the ScaffoldPlan from the raw LLM text.
+// parsePlan extracts and validates the types.ScaffoldPlan from the raw LLM text.
 // The model occasionally wraps the JSON in markdown fences — we strip those.
-func parsePlan(raw string) (*ScaffoldPlan, error) {
+func parsePlan(raw string) (*types.ScaffoldPlan, error) {
 	cleaned := strings.TrimSpace(raw)
 
 	// Strip optional ```json ... ``` fences
@@ -206,7 +181,7 @@ func parsePlan(raw string) (*ScaffoldPlan, error) {
 		}
 	}
 
-	var plan ScaffoldPlan
+	var plan types.ScaffoldPlan
 	if err := json.Unmarshal([]byte(cleaned), &plan); err != nil {
 		return nil, fmt.Errorf("parse scaffold JSON: %w\nraw output: %.400s", err, cleaned)
 	}
@@ -218,7 +193,7 @@ func parsePlan(raw string) (*ScaffoldPlan, error) {
 }
 
 // validatePlan rejects plans that could cause harm (path traversal, empty content, etc.)
-func validatePlan(plan *ScaffoldPlan) error {
+func validatePlan(plan *types.ScaffoldPlan) error {
 	if strings.TrimSpace(plan.Name) == "" {
 		return errors.New("plan has no project name")
 	}
@@ -248,8 +223,8 @@ func validatePlan(plan *ScaffoldPlan) error {
 // GenerateProject is the Wails-bound method called from the Vue frontend.
 // It calls the LLM, parses the scaffold plan, writes every file to rootPath,
 // and emits real-time progress events.
-func (a *App) GenerateProject(userPrompt string, rootPath string, extraConventions string) error {
-	client := newLLMClient(a.config.AnthropicAPIKey)
+func (a *Agent) GenerateProject(userPrompt string, rootPath string, extraConventions string) error {
+	client := newLLMClient(a.ApiKey)
 
 	// Optionally inject project-specific conventions on top of the base prompt
 	system := scaffoldSystemPrompt
@@ -257,26 +232,22 @@ func (a *App) GenerateProject(userPrompt string, rootPath string, extraConventio
 		system += "\n\nAdditional conventions for this project:\n" + extraConventions
 	}
 
-	emit := func(p ScaffoldProgress) {
-		runtime.EventsEmit(a.ctx, "scaffold:progress", p)
-	}
-
-	emit(ScaffoldProgress{File: "Contacting LLM…"})
+	a.Emit(types.ScaffoldProgress{File: "Contacting LLM…"})
 
 	ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
 	defer cancel()
 
 	raw, err := client.complete(ctx, system, userPrompt)
 	if err != nil {
-		emit(ScaffoldProgress{Error: err.Error(), Done: true})
+		a.Emit(types.ScaffoldProgress{Error: err.Error(), Done: true})
 		return err
 	}
 
-	emit(ScaffoldProgress{File: "Parsing plan…"})
+	a.Emit(types.ScaffoldProgress{File: "Parsing plan…"})
 
 	plan, err := parsePlan(raw)
 	if err != nil {
-		emit(ScaffoldProgress{Error: err.Error(), Done: true})
+		a.Emit(types.ScaffoldProgress{Error: err.Error(), Done: true})
 		return err
 	}
 
@@ -288,7 +259,7 @@ func (a *App) GenerateProject(userPrompt string, rootPath string, extraConventio
 		// Create parent directories
 		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
 			msg := fmt.Sprintf("create dir for %s: %v", f.Path, err)
-			emit(ScaffoldProgress{Error: msg, Done: true})
+			a.Emit(types.ScaffoldProgress{Error: msg, Done: true})
 			return errors.New(msg)
 		}
 
@@ -297,13 +268,13 @@ func (a *App) GenerateProject(userPrompt string, rootPath string, extraConventio
 		if err != nil {
 			if os.IsExist(err) {
 				msg := fmt.Sprintf("file already exists, skipping: %s", f.Path)
-				emit(ScaffoldProgress{File: f.Path, Index: i + 1, Total: total})
+				a.Emit(types.ScaffoldProgress{File: f.Path, Index: i + 1, Total: total})
 				// Non-fatal: log and continue
 				fmt.Println("[scaffold]", msg)
 				continue
 			}
 			msg := fmt.Sprintf("create file %s: %v", f.Path, err)
-			emit(ScaffoldProgress{Error: msg, Done: true})
+			a.Emit(types.ScaffoldProgress{Error: msg, Done: true})
 			return errors.New(msg)
 		}
 
@@ -311,17 +282,17 @@ func (a *App) GenerateProject(userPrompt string, rootPath string, extraConventio
 		file.Close()
 		if writeErr != nil {
 			msg := fmt.Sprintf("write file %s: %v", f.Path, writeErr)
-			emit(ScaffoldProgress{Error: msg, Done: true})
+			a.Emit(types.ScaffoldProgress{Error: msg, Done: true})
 			return errors.New(msg)
 		}
 
-		emit(ScaffoldProgress{
+		a.Emit(types.ScaffoldProgress{
 			File:  f.Path,
 			Index: i + 1,
 			Total: total,
 		})
 	}
 
-	emit(ScaffoldProgress{Done: true, Total: total, Index: total})
+	a.Emit(types.ScaffoldProgress{Done: true, Total: total, Index: total})
 	return nil
 }

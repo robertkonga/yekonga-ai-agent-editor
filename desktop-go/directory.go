@@ -11,21 +11,10 @@ import (
 	"strings"
 	"yekonga-builder/console"
 	"yekonga-builder/helper"
+	"yekonga-builder/types"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
-
-// FileNode represents the metadata schema for files and directories
-type FileNode struct {
-	ID        string      `json:"id"` // Masked, deterministic unique identifier
-	Name      string      `json:"name"`
-	Path      string      `json:"path"`
-	Extension string      `json:"extension,omitempty"` // Omitted if directory
-	Type      string      `json:"type"`                // "file" or "directory"
-	Lang      string      `json:"lang,omitempty"`      // Language key for editor highlighting
-	Extended  bool        `json:"extended"`            // UI state default
-	Children  []*FileNode `json:"children,omitempty"`  // Omitted if file
-}
 
 // OpenWorkspaceDialog triggers a native folder prompt and returns the selected route string
 func (a *App) OpenWorkspaceDialog() (string, error) {
@@ -111,7 +100,7 @@ func (a *App) CopyFile(src, dst string) error {
 }
 
 // ReadDirectory recursively scans the target path and returns a nested tree structure
-func (a *App) ReadDirectory(rootPath string) (*FileNode, error) {
+func (a *App) ReadDirectory(rootPath string) (*types.FileNode, error) {
 
 	// Convert to absolute path to guarantee uniqueness across execution contexts
 	absPath, err := filepath.Abs(rootPath)
@@ -126,13 +115,13 @@ func (a *App) ReadDirectory(rootPath string) (*FileNode, error) {
 	}
 
 	// Bootstrap the root directory node
-	rootNode := &FileNode{
+	rootNode := &types.FileNode{
 		ID:       generateID(cleanPath),
 		Name:     filepath.Base(cleanPath),
 		Path:     cleanPath,
 		Type:     "directory",
 		Extended: true,
-		Children: []*FileNode{},
+		Children: []*types.FileNode{},
 	}
 
 	err = buildTree(cleanPath, rootNode)
@@ -181,7 +170,7 @@ func generateID(absolutePath string) string {
 }
 
 // buildTree helper handles the recursive traversal with IDE sorting rules
-func buildTree(currentPath string, parentNode *FileNode) error {
+func buildTree(currentPath string, parentNode *types.FileNode) error {
 	entries, err := os.ReadDir(currentPath)
 	if err != nil {
 		return err
@@ -201,7 +190,7 @@ func buildTree(currentPath string, parentNode *FileNode) error {
 	for _, entry := range entries {
 		entryPath := filepath.Join(currentPath, entry.Name())
 
-		node := &FileNode{
+		node := &types.FileNode{
 			ID:   generateID(entryPath),
 			Name: entry.Name(),
 			Path: entryPath,
@@ -210,7 +199,7 @@ func buildTree(currentPath string, parentNode *FileNode) error {
 		if entry.IsDir() {
 			node.Type = "directory"
 			node.Extended = false
-			node.Children = []*FileNode{}
+			node.Children = []*types.FileNode{}
 
 			// Recursive dive
 			err := buildTree(entryPath, node)
