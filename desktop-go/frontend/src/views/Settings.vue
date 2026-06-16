@@ -46,7 +46,7 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Default LLM Provider</label>
                         <select v-model="defaultProvider" 
-                                class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500 transition-colors">
+                                class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
                             <option value="gemini">Google Gemini (Flash 2.0)</option>
                             <option value="anthropic">Anthropic (Claude 3.5 Sonnet)</option>
                         </select>
