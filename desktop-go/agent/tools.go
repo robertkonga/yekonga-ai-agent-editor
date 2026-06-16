@@ -92,4 +92,82 @@ var agentTools = []Tool{
 			Required: []string{"command"},
 		},
 	},
+	{
+		Name:        "initialize_project",
+		Description: "Initialize a new project with a standard directory structure and configuration files based on a description.",
+		InputSchema: Schema{
+			Type: "object",
+			Properties: map[string]Property{
+				"prompt": {
+					Type:        "string",
+					Description: "Detailed description of the project requirements, framework, and language.",
+				},
+				"root_path": {
+					Type:        "string",
+					Description: "The absolute path where the project should be initialized.",
+				},
+			},
+			Required: []string{"prompt", "root_path"},
+		},
+	},
+	{
+		Name:        "generate_dataschema",
+		Description: "Generate a comprehensive database schema (JSON) based on a description of the data requirements.",
+		InputSchema: Schema{
+			Type: "object",
+			Properties: map[string]Property{
+				"description": {
+					Type:        "string",
+					Description: "Detailed description of the tables, fields, and relationships needed.",
+				},
+			},
+			Required: []string{"description"},
+		},
+	},
+	{
+		Name:        "generate_crud",
+		Description: "Generate CRUD (Create, Read, Update, Delete) components and backend logic for a specific entity or the whole schema.",
+		InputSchema: Schema{
+			Type: "object",
+			Properties: map[string]Property{
+				"schema_json": {
+					Type:        "string",
+					Description: "The database schema in JSON format.",
+				},
+				"target_path": {
+					Type:        "string",
+					Description: "The absolute path where the CRUD files should be generated.",
+				},
+			},
+			Required: []string{"schema_json", "target_path"},
+		},
+	},
+	{
+		Name:        "read_template",
+		Description: "Read a code generation template by name (e.g., 'form', 'list', 'report').",
+		InputSchema: Schema{
+			Type: "object",
+			Properties: map[string]Property{
+				"name": {
+					Type:        "string",
+					Description: "Name of the template to read (without extension).",
+				},
+			},
+			Required: []string{"name"},
+		},
+	},
+	{
+		Name:        "list_templates",
+		Description: "List all available code generation templates.",
+		InputSchema: Schema{
+			Type: "object",
+		},
+	},
+	{
+		Name:        "get_active_workspace_path",
+		Description: "Get the absolute path of the currently open workspace/project.",
+		InputSchema: Schema{
+			Type: "object",
+		},
+	},
 }

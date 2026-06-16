@@ -113,6 +113,7 @@ func (a *App) CopyFile(src, dst string) error {
 
 // ReadDirectory recursively scans the target path and returns a nested tree structure
 func (a *App) ReadDirectory(rootPath string) (*types.FileNode, error) {
+	a.agent.ActivePath = rootPath
 
 	// Convert to absolute path to guarantee uniqueness across execution contexts
 	absPath, err := filepath.Abs(rootPath)

@@ -19,6 +19,7 @@ var assets embed.FS
 
 type Agent struct {
 	ApiKey         string
+	ActivePath     string
 	ctx            *context.Context
 	sessionManager *SessionManager
 }
