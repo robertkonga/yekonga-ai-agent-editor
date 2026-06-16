@@ -121,7 +121,7 @@ export class Query<T>{
     private orderByField: string = 'createdAt';
     private orderByDirection: 'asc' | 'desc' = 'asc';
     private relationKeys: string[] = [];
-
+    
     readonly SYMBOL_EQUAL: string = '=';
     readonly SYMBOL_GREATER: string = '>';
     readonly SYMBOL_GREATER_EQUAL: string = '>=';
@@ -137,6 +137,7 @@ export class Query<T>{
     private db(): Promise<IDBDatabase | null> {
         const $parent = this.parent;
         $parent.init($parent.options);
+
         return new Promise((resolve) => {
             let i = 0;
             const timer = setInterval(() => {
@@ -149,7 +150,7 @@ export class Query<T>{
                     clearInterval(timer);
                 }
                 i++;
-            }, 500);
+            }, 50);
         });
     }
 
@@ -163,7 +164,7 @@ export class Query<T>{
             const store = tx.objectStore($this.table);
             const request = store.getAll();
 
-            tx.oncomplete = () => db!.close();
+            // tx.oncomplete = () => db!.close();
 
             result = await new Promise((resolve) =>
                 request.onsuccess = (event) => {
@@ -190,7 +191,7 @@ export class Query<T>{
         try {
             const tx = db!.transaction($this.table, 'readonly');
             const store = tx.objectStore($this.table);
-            tx.oncomplete = () => db!.close();
+            // tx.oncomplete = () => db!.close();
             result = await new Promise((resolve) => {
                 if (id) {
                     store.get(id).onsuccess = (event) => resolve((event.target as IDBRequest).result);
@@ -309,7 +310,7 @@ export class Query<T>{
             const store = tx.objectStore($this.table);
 
             store.put(data);
-            tx.oncomplete = () => db!.close();
+            // tx.oncomplete = () => db!.close();
         } catch (error) {
             console.error(error);
             return { status: 'fail' };
@@ -328,7 +329,7 @@ export class Query<T>{
             const tx = db!.transaction(this.table, 'readwrite');
             const store = tx.objectStore(this.table);
 
-            tx.oncomplete = () => db!.close();
+            // tx.oncomplete = () => db!.close();
             store.delete(id);
         } catch (error) {
             console.error(error);
@@ -369,7 +370,7 @@ export class Query<T>{
             const tx = db!.transaction(this.table, 'readwrite');
             const store = tx.objectStore(this.table);
 
-            tx.oncomplete = () => db!.close();
+            // tx.oncomplete = () => db!.close();
             store.clear();
         } catch (error) { }
 

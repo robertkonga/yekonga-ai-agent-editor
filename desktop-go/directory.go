@@ -39,10 +39,22 @@ func (a *App) SaveFile(data any, target string) error {
 	return err
 }
 
-func (a *App) ReadFile(target string) (string, error) {
+func (a *App) ReadFile(target string) (map[string]any, error) {
 	content := helper.ReadFile(target)
 
-	return content, nil
+	// 1. Get file information
+	fileInfo, err := os.Stat(target)
+	if err != nil {
+		console.Error(err.Error())
+	}
+
+	// 2. Extract the modification time
+	modificationTime := fileInfo.ModTime()
+
+	return map[string]any{
+		"content":    content,
+		"lastUpdate": modificationTime,
+	}, nil
 }
 
 func (a *App) MoveFile(source string, destination string) error {
@@ -120,7 +132,7 @@ func (a *App) ReadDirectory(rootPath string) (*types.FileNode, error) {
 		Name:     filepath.Base(cleanPath),
 		Path:     cleanPath,
 		Type:     "directory",
-		Extended: true,
+		Expanded: true,
 		Children: []*types.FileNode{},
 	}
 
@@ -190,29 +202,42 @@ func buildTree(currentPath string, parentNode *types.FileNode) error {
 	for _, entry := range entries {
 		entryPath := filepath.Join(currentPath, entry.Name())
 
-		node := &types.FileNode{
-			ID:   generateID(entryPath),
-			Name: entry.Name(),
-			Path: entryPath,
-		}
-
-		if entry.IsDir() {
-			node.Type = "directory"
-			node.Extended = false
-			node.Children = []*types.FileNode{}
-
-			// Recursive dive
-			err := buildTree(entryPath, node)
+		if !(strings.Contains(entryPath, "/node_modules/") ||
+			strings.Contains(entryPath, "/.build/") ||
+			strings.Contains(entryPath, "/.dist/") ||
+			strings.Contains(entryPath, "/.git/")) {
+			// 1. Get file information
+			fileInfo, err := os.Stat(entryPath)
 			if err != nil {
-				return err
+				console.Error(err.Error())
 			}
-		} else {
-			node.Type = "file"
-			node.Extension = filepath.Ext(entry.Name())
-			node.Lang = detectLanguage(node.Extension)
+
+			node := &types.FileNode{
+				ID:         generateID(entryPath),
+				Name:       entry.Name(),
+				Path:       entryPath,
+				LastUpdate: fileInfo.ModTime(),
+			}
+
+			if entry.IsDir() {
+				node.Type = "directory"
+				node.Expanded = false
+				node.Children = []*types.FileNode{}
+
+				// Recursive dive
+				err := buildTree(entryPath, node)
+				if err != nil {
+					return err
+				}
+			} else {
+				node.Type = "file"
+				node.Extension = filepath.Ext(entry.Name())
+				node.Lang = detectLanguage(node.Extension)
+			}
+
+			parentNode.Children = append(parentNode.Children, node)
 		}
 
-		parentNode.Children = append(parentNode.Children, node)
 	}
 
 	return nil

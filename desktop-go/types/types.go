@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 // ── Public types ─────────────────────────────────────────────────────────────
 
 // ScaffoldFile is a single file in the generated project plan.
@@ -26,12 +28,13 @@ type ScaffoldProgress struct {
 
 // FileNode represents the metadata schema for files and directories
 type FileNode struct {
-	ID        string      `json:"id"` // Masked, deterministic unique identifier
-	Name      string      `json:"name"`
-	Path      string      `json:"path"`
-	Extension string      `json:"extension,omitempty"` // Omitted if directory
-	Type      string      `json:"type"`                // "file" or "directory"
-	Lang      string      `json:"lang,omitempty"`      // Language key for editor highlighting
-	Extended  bool        `json:"extended"`            // UI state default
-	Children  []*FileNode `json:"children,omitempty"`  // Omitted if file
+	ID         string      `json:"id"` // Masked, deterministic unique identifier
+	Name       string      `json:"name"`
+	Path       string      `json:"path"`
+	Extension  string      `json:"extension,omitempty"` // Omitted if directory
+	Type       string      `json:"type"`                // "file" or "directory"
+	Lang       string      `json:"lang,omitempty"`      // Language key for editor highlighting
+	Expanded   bool        `json:"expanded"`            // UI state default
+	Children   []*FileNode `json:"children,omitempty"`  // Omitted if file
+	LastUpdate time.Time   `json:"lastUpdate"`
 }
