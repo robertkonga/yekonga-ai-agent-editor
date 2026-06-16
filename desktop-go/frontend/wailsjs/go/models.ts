@@ -1,4 +1,23 @@
-export namespace main {
+export namespace agent {
+	
+	export class ChatMessage {
+	    role: string;
+	    content: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChatMessage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.role = source["role"];
+	        this.content = source["content"];
+	    }
+	}
+
+}
+
+export namespace types {
 	
 	export class FileNode {
 	    id: string;
@@ -7,8 +26,10 @@ export namespace main {
 	    extension?: string;
 	    type: string;
 	    lang?: string;
-	    extended: boolean;
+	    expanded: boolean;
 	    children?: FileNode[];
+	    // Go type: time
+	    lastUpdate: any;
 	
 	    static createFrom(source: any = {}) {
 	        return new FileNode(source);
@@ -22,8 +43,9 @@ export namespace main {
 	        this.extension = source["extension"];
 	        this.type = source["type"];
 	        this.lang = source["lang"];
-	        this.extended = source["extended"];
+	        this.expanded = source["expanded"];
 	        this.children = this.convertValues(source["children"], FileNode);
+	        this.lastUpdate = this.convertValues(source["lastUpdate"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

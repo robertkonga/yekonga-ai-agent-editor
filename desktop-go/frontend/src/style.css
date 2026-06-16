@@ -1,15 +1,35 @@
 @import "tailwindcss";
 
 html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  background-color: #0d1117;
-  color: #c9d1d9;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background-color: #0d1117;
+    color: #c9d1d9;
 }
 
 #app {
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+:root {
+    --mx-menu-backgroud: var(--color-slate-800) !important; 
+    --mx-menu-background: var(--color-slate-800) !important; 
+    --mx-menu-hover-backgroud: var(--color-slate-700) !important;
+    --mx-menu-active-backgroud: var(--color-slate-700) !important;
+    --mx-menu-open-backgroud: var(--color-slate-700) !important;
+    --mx-menu-open-hover-backgroud: var(--color-slate-700) !important;
+    --mx-menu-divider: var(--color-slate-700) !important;;
+    --mx-menu-text: var(--color-slate-200) !important;
+    --mx-menu-hover-text: var(--color-slate-300) !important;
+    --mx-menu-active-text: var(--color-slate-200) !important;
+    --mx-menu-open-text: var(--color-slate-200) !important;
+    --mx-menu-open-hover-text: var(--color-slate-200) !important;
+    --mx-menu-disabled-text: #c9c8c8;
+}
+
+.mx-context-menu .mx-context-menu-item {
+    padding: 3px 14px;
 }

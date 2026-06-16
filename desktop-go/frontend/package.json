@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@imengyu/vue3-context-menu": "^1.5.4",
     "@tailwindcss/vite": "^4.2.4",
     "monaco-editor": "^0.55.1",
     "pinia": "^3.0.4",
