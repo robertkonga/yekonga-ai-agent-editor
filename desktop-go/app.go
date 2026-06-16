@@ -50,6 +50,14 @@ func (a *App) AgentChat(sessionID string, userInput string, provider string) err
 	return a.agent.AgentChat(sessionID, userInput, provider)
 }
 
+func (a *App) ListSessions() ([]*agent.Session, error) {
+	return a.agent.ListSessions()
+}
+
+func (a *App) GetSession(id string) (*agent.Session, error) {
+	return a.agent.GetSession(id)
+}
+
 // SaveAPIKey receives the key from the frontend and stores it securely
 func (a *App) SaveAPIKey(apiKey string) error {
 	if apiKey == "" {

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, nextTick, reactive, ref } from 'vue';
 import * as monaco from 'monaco-editor';
-import { ReadDirectory, ReadFile } from '@wails/go/main/App';
+import { ReadDirectory, ReadFile, ListSessions } from '@wails/go/main/App';
 import YekongaDatabase from '@/scripts/database';
 
 const WORKSHOP_TABLE = "workshops"
@@ -28,6 +28,8 @@ export interface Workspace {
     path: string;
     customizedView: CUSTOMIZATION_VIEW;
     workspaceFiles: FileNode[];
+    changedFiles: FileNode[];
+    sessions: any[];
     openTabs: FileNode[];
     activeFile: FileNode | null;
     viewStates: Record<string, monaco.editor.ICodeEditorViewState | null>;
@@ -79,6 +81,8 @@ export const useWorkspaceStore = (name: string) => {
                 if (!Object.hasOwn(res, key)) continue;
                 
                 workspaces[key] = res[key];
+                if (!workspaces[key].changedFiles) workspaces[key].changedFiles = [];
+                if (!workspaces[key].sessions) workspaces[key].sessions = [];
             }
 
             // sortWorkshops();
@@ -115,6 +119,8 @@ export const useWorkspaceStore = (name: string) => {
                         name: name,
                         path: path,
                         workspaceFiles: [],
+                        changedFiles: [],
+                        sessions: [],
                         openTabs: [],
                         activeFile: null,
                         isPinned: false,
@@ -126,6 +132,8 @@ export const useWorkspaceStore = (name: string) => {
                     // workspaces[path].id = id;
                     // workspaces[path].name = name;
                     workspaces[path].lastOpened = new Date();
+                    if (!workspaces[path].changedFiles) workspaces[path].changedFiles = [];
+                    if (!workspaces[path].sessions) workspaces[path].sessions = [];
                 }
 
                 activePath.value = path;
@@ -142,6 +150,32 @@ export const useWorkspaceStore = (name: string) => {
         const removeWorkshop = async (path: string) => {
             delete workspaces[path];
             await saveLocally();
+        }
+
+        const trackChange = (file: FileNode) => {
+            if (!active.value) return;
+            const exists = active.value.changedFiles.some(f => f.path === file.path);
+            if (!exists) {
+                active.value.changedFiles.push(window.copy(file));
+            }
+            saveLocally();
+        }
+
+        const clearChange = (path: string) => {
+            if (!active.value) return;
+            active.value.changedFiles = active.value.changedFiles.filter(f => f.path !== path);
+            saveLocally();
+        }
+
+        const fetchSessions = async () => {
+            if (!active.value) return;
+            try {
+                const sessions = await ListSessions();
+                active.value.sessions = sessions || [];
+                saveLocally();
+            } catch (error) {
+                console.error("Failed to fetch sessions:", error);
+            }
         }
 
         const changeCustomizationView = async (name: CUSTOMIZATION_VIEW) => {
@@ -329,6 +363,9 @@ export const useWorkspaceStore = (name: string) => {
             loadWorkshops,
             removeWorkshop,
             sortWorkshops,
+            trackChange,
+            clearChange,
+            fetchSessions,
         };
     });
 }

@@ -65,6 +65,14 @@ func (a *Agent) getSystemInstruction(name string) string {
 	return string(value)
 }
 
+func (a *Agent) ListSessions() ([]*Session, error) {
+	return a.sessionManager.ListSessions()
+}
+
+func (a *Agent) GetSession(id string) (*Session, error) {
+	return a.sessionManager.GetSession(id)
+}
+
 // AgentChat is bound to Wails — called from Vue when user sends a message.
 func (a *Agent) AgentChat(sessionID string, userMessage string, providerName string) error {
 	// 1. Get or create session

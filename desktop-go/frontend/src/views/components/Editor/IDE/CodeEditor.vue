@@ -74,6 +74,7 @@ const saveFileContent = (content?: any) => {
     if (store.active && store.active.activeFile && (content !== store.active.activeFile.content)) {
         if(store.active.activeFile.path) {
             SaveFile(content, store.active.activeFile.path)
+            store.trackChange(store.active.activeFile)
         }
     }
 }

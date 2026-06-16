@@ -14,12 +14,20 @@ export function DeleteFile(arg1) {
   return window['go']['main']['App']['DeleteFile'](arg1);
 }
 
+export function GetSession(arg1) {
+  return window['go']['main']['App']['GetSession'](arg1);
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
 
 export function HomeDirectory(arg1) {
   return window['go']['main']['App']['HomeDirectory'](arg1);
+}
+
+export function ListSessions() {
+  return window['go']['main']['App']['ListSessions']();
 }
 
 export function LoadAPIKey() {
