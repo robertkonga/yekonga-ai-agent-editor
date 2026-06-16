@@ -173,7 +173,10 @@ const chatHistoryContainer = ref<HTMLElement | null>(null);
 const userInput = ref('');
 const isAiThinking = ref(false);
 const newSession = ref(false);
-const messages = ref<agent.ChatMessage[]>([
+const currentSessionID = ref<string>("session-" + Math.random().toString(36).substring(2, 9));
+const selectedProvider = ref<string>("gemini");
+
+const messages = ref<any[]>([
     {
         role: 'assistant',
         content: 'Welcome back! I have context access to your workspace structure. Pick any file from the explorer to begin refactoring.',
@@ -197,6 +200,15 @@ const progressPercent = computed(() => {
 
 function resetScaffold() {
     scaffoldProgress.value = { active: false, file: '', index: 0, total: 0, files: [] }
+}
+
+const appendOrUpdateAssistant = (text: string) => {
+    const lastMsg = messages.value[messages.value.length - 1];
+    if (lastMsg && lastMsg.role === 'assistant') {
+        lastMsg.content += text;
+    } else {
+        messages.value.push({ role: 'assistant', content: text });
+    }
 }
 
 // ── Wails event listener ─────────────────────────────────────────────────────
@@ -241,7 +253,7 @@ onMounted(() => {
     // In AiAssistant.vue — onMounted
     EventsOn('agent:message', (text: string) => {
         // append or stream into the last assistant bubble
-        // appendOrUpdateAssistant(text)
+        appendOrUpdateAssistant(text)
         scrollToBottom()
     })
 
@@ -257,6 +269,7 @@ onMounted(() => {
 
     EventsOn('agent:done', () => {
         isAiThinking.value = false
+        store.fetchSessions();
     })
 
     EventsOn('agent:error', (msg: string) => {
@@ -267,6 +280,10 @@ onMounted(() => {
 
 onUnmounted(() => {
     EventsOff('scaffold:progress')
+    EventsOff('agent:message')
+    EventsOff('agent:tool')
+    EventsOff('agent:done')
+    EventsOff('agent:error')
 })
 
 // ── Chat helpers ─────────────────────────────────────────────────────────────
@@ -287,16 +304,11 @@ const sendMessage = async () => {
     scrollToBottom()
 
     isAiThinking.value = true
+    newSession.value = false;
     resetScaffold()
 
-
-
     try {
-        // await GenerateProject(text, store.active?.path ?? '', '')
-        // Final message is pushed inside the EventsOn handler above
-        
-        await AgentChat(text, messages.value)
-
+        await AgentChat(currentSessionID.value, text, selectedProvider.value)
     } catch (err: any) {
         isAiThinking.value = false
         messages.value.push({
