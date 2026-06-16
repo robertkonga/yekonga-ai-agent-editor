@@ -5,7 +5,9 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"strings"
+	"os"
+	"path/filepath"
+	"time"
 	"yekonga-builder/console"
 	"yekonga-builder/types"
 
@@ -16,9 +18,9 @@ import (
 var assets embed.FS
 
 type Agent struct {
-	ApiKey    string
-	ctx       *context.Context
-	llmClient geminiClient
+	ApiKey         string
+	ctx            *context.Context
+	sessionManager *SessionManager
 }
 
 type ChatMessage struct {
@@ -37,9 +39,15 @@ type ContentBlock struct {
 }
 
 func NewAgent(apiKey string, ctx *context.Context) *Agent {
+	configDir, _ := os.UserConfigDir()
+	storageDir := filepath.Join(configDir, "YekongaEditor", "sessions")
+
+	sm, _ := NewSessionManager(storageDir)
+
 	return &Agent{
-		ApiKey: apiKey,
-		ctx:    ctx,
+		ApiKey:         apiKey,
+		ctx:            ctx,
+		sessionManager: sm,
 	}
 }
 
@@ -48,7 +56,7 @@ func (a *Agent) Emit(p types.ScaffoldProgress) {
 }
 
 func (a *Agent) getSystemInstruction(name string) string {
-	value, err := assets.ReadFile(fmt.Sprintf("template/%s.%s", name, "md"))
+	value, err := assets.ReadFile(fmt.Sprintf("templates/%s.%s", name, "md"))
 
 	if err != nil {
 		console.Log(err.Error())
@@ -58,63 +66,74 @@ func (a *Agent) getSystemInstruction(name string) string {
 }
 
 // AgentChat is bound to Wails — called from Vue when user sends a message.
-// history is the full conversation so far (sent from frontend).
-func (a *Agent) AgentChat(userMessage string, history []ChatMessage) error {
-	// Append the new user message to history
-	history = append(history, ChatMessage{
+func (a *Agent) AgentChat(sessionID string, userMessage string, providerName string) error {
+	// 1. Get or create session
+	session, err := a.sessionManager.GetSession(sessionID)
+	if err != nil {
+		return err
+	}
+	if session == nil {
+		session = &Session{
+			ID:          sessionID,
+			Provider:    providerName,
+			History:     []ChatMessage{},
+			LastUpdated: time.Now(),
+		}
+	}
+
+	// 2. Select provider
+	var provider LLMProvider
+	if session.Provider == "anthropic" {
+		provider = NewAnthropicProvider(a.ApiKey)
+	} else {
+		provider = NewGeminiProvider(a.ApiKey)
+	}
+
+	// 3. Append user message
+	session.History = append(session.History, ChatMessage{
 		Role:    "user",
 		Content: userMessage,
 	})
 
-	// Agentic loop — keeps going until Claude stops calling tools
+	// 4. Agentic loop
 	for {
-		// Collect all content blocks from the response
-		var textParts []string
-		var toolCalls []ContentBlock
-
-		// resp, err := a.llmClient.complete(
-		// 	context.Background(),
-		// 	agentSystemPrompt,
-		// 	history,
-		// 	agentTools,
-		// )
-		// if err != nil {
-		// 	runtime.EventsEmit(*a.ctx, "agent:error", err.Error())
-		// 	return err
-		// }
-
-		// for _, block := range resp.Candidates[0].Content.Parts {
-		// 	switch block.Text {
-		// 	case "text":
-		// 		if strings.TrimSpace(block.Text) != "" {
-		// 			textParts = append(textParts, block.Text)
-		// 		}
-		// 	case "tool_use":
-		// 		toolCalls = append(toolCalls, block)
-		// 	}
-		// }
-
-		// Stream any text to frontend immediately
-		if len(textParts) > 0 {
-			runtime.EventsEmit(*a.ctx, "agent:message", strings.Join(textParts, ""))
+		resp, err := provider.Complete(
+			context.Background(),
+			agentSystemPrompt,
+			session.History,
+			agentTools,
+		)
+		if err != nil {
+			runtime.EventsEmit(*a.ctx, "agent:error", err.Error())
+			return err
 		}
 
-		// No tool calls → Claude is done, exit loop
-		if len(toolCalls) == 0 {
+		// Stream text to frontend
+		if resp.Content != "" {
+			runtime.EventsEmit(*a.ctx, "agent:message", resp.Content)
+		}
+
+		// Add assistant response to history
+		assistantMsg := ChatMessage{
+			Role:    "assistant",
+			Content: resp.Content,
+		}
+
+		if len(resp.ToolCalls) > 0 {
+			assistantMsg.Content = resp.ToolCalls
+		}
+		session.History = append(session.History, assistantMsg)
+
+		// No tool calls → done
+		if len(resp.ToolCalls) == 0 {
+			a.sessionManager.SaveSession(session)
 			runtime.EventsEmit(*a.ctx, "agent:done", nil)
 			return nil
 		}
 
-		// Add Claude's response (with tool_use blocks) to history
-		history = append(history, ChatMessage{
-			Role: "assistant",
-			// Content: resp.Content,
-		})
-
-		// Execute each tool and collect results
+		// Execute tools
 		var toolResults []ContentBlock
-		for _, call := range toolCalls {
-			// Tell the frontend which tool is running
+		for _, call := range resp.ToolCalls {
 			runtime.EventsEmit(*a.ctx, "agent:tool", map[string]string{
 				"name":  call.Name,
 				"input": string(call.Input),
@@ -127,16 +146,19 @@ func (a *Agent) AgentChat(userMessage string, history []ChatMessage) error {
 
 			toolResults = append(toolResults, ContentBlock{
 				Type:      "tool_result",
+				Name:      call.Name,
 				ToolUseID: call.ID,
 				Content:   result,
 			})
 		}
 
-		// Add tool results to history and loop again
-		history = append(history, ChatMessage{
+		// Add results to history and continue loop
+		session.History = append(session.History, ChatMessage{
 			Role:    "user",
 			Content: toolResults,
 		})
+
+		a.sessionManager.SaveSession(session)
 	}
 }
 

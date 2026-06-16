@@ -45,10 +45,9 @@ func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
 }
 
-// Greet returns a greeting for the given name
-func (a *App) AgentChat(userInput string, history []agent.ChatMessage) error {
-	// history := make([]agent.ChatMessage, 0)
-	return a.agent.AgentChat(userInput, history)
+// AgentChat calls the agent with session support
+func (a *App) AgentChat(sessionID string, userInput string, provider string) error {
+	return a.agent.AgentChat(sessionID, userInput, provider)
 }
 
 // SaveAPIKey receives the key from the frontend and stores it securely
