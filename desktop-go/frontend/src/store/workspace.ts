@@ -1,10 +1,13 @@
 import { defineStore } from 'pinia';
-import { computed, reactive, ref } from 'vue';
+import { computed, nextTick, reactive, ref } from 'vue';
 import * as monaco from 'monaco-editor';
 import { ReadDirectory, ReadFile } from '@wails/go/main/App';
 import YekongaDatabase from '@/scripts/database';
 
 const WORKSHOP_TABLE = "workshops"
+
+export type VIEW_MODE = "EDITOR" | "AGENT" | "WORKSPACE" | "NONE";
+export type CUSTOMIZATION_VIEW = "AGENT" | "DATA_SCHEMA" | "PROJECT";
 
 export interface FileNode {
     id: string;
@@ -16,12 +19,14 @@ export interface FileNode {
     expanded?: boolean; // Optional: only directories use this for UI state
     children?: FileNode[]; // Optional: only directories contain children arrays
     extension?: string;
+    lastUpdate?: Date;
 }
 
 export interface Workspace {
     id: string,
     name: string,
     path: string;
+    customizedView: CUSTOMIZATION_VIEW;
     workspaceFiles: FileNode[];
     openTabs: FileNode[];
     activeFile: FileNode | null;
@@ -29,6 +34,7 @@ export interface Workspace {
     isPinned?: boolean;
     lastOpened: Date;
 }
+
 
 export const useWorkspaceStore = (name: string) => {
     return defineStore(name, () => {
@@ -39,30 +45,111 @@ export const useWorkspaceStore = (name: string) => {
             ]
         })
 
+        const viewMode = ref<VIEW_MODE>("EDITOR")
         const workspaces = reactive<Record<string, Workspace>>({})
         const activePath = ref<string | null>(null);
-        const active = computed<Workspace | null>(()=>{
-            if(activePath.value && workspaces[activePath.value]) {
-                return workspaces[activePath.value]
-            }
-
-            return null;
-        })
+        const active = ref<Workspace | null>(null);
 
         const saveLocally = async () => {
-            await db.table(WORKSHOP_TABLE).create(window.copy(active.value));
+            // await db.table(WORKSHOP_TABLE).create(window.copy(active.value));
+            // =================================================== //
+
+            if(activePath.value && active.value) {
+                workspaces[activePath.value] = active.value;
+            }
+
+            let data = window.copy(workspaces);
+            for (const key in data) {
+                if (!Object.hasOwn(data, key)) continue;
+                
+                data[key].workspaceFiles = [];
+            }
+
+            window.savaLocalData(data)
+        }
+
+        const setViewMode = (value: VIEW_MODE) => {
+            viewMode.value = value;
         }
 
         const loadWorkshops = async () => {
-            var res = await db.table(WORKSHOP_TABLE).find() as Workspace[];
+            let res = window.fetchLocalData();
 
-            for (const e of res) {
-                try {
-                    workspaces[e.path] = e;
-                } catch (error) {
-                    console.log(error);
-                }
+            for (const key in res) {
+                if (!Object.hasOwn(res, key)) continue;
+                
+                workspaces[key] = res[key];
             }
+
+            // sortWorkshops();
+        }
+
+        const sortWorkshops = () => {
+            const list = Object.fromEntries(
+                Object.entries(window.copy(workspaces) as Record<string, Workspace>)
+                    .sort(
+                        ([, a], [, b]) => window.dateToNumber(b.lastOpened) - window.dateToNumber(a.lastOpened)
+                    )
+            );
+
+            for (const key in workspaces) {
+                delete workspaces[key];
+            }
+
+            for (const key in list) {
+                if (!Object.hasOwn(list, key)) continue;
+                workspaces[key] = list[key];
+            }
+        }
+
+        const openWorkshop = async (path: string | null) => {
+            viewMode.value = 'EDITOR';
+            
+            if(path) {
+                let id = await generateID(path);
+                let name = path.split("/").pop() || "";
+
+                if(!workspaces[path]) {
+                    workspaces[path] = {
+                        id: id,
+                        name: name,
+                        path: path,
+                        workspaceFiles: [],
+                        openTabs: [],
+                        activeFile: null,
+                        isPinned: false,
+                        viewStates: {},
+                        lastOpened: new Date(),
+                        customizedView: "AGENT",
+                    }
+                } else {
+                    // workspaces[path].id = id;
+                    // workspaces[path].name = name;
+                    workspaces[path].lastOpened = new Date();
+                }
+
+                activePath.value = path;
+                active.value = workspaces[path];
+            } else {
+                activePath.value = null;
+                active.value = null;
+            }
+            
+            await saveLocally();
+            await fetchWorkspaceFiles();
+        }
+
+        const removeWorkshop = async (path: string) => {
+            delete workspaces[path];
+            await saveLocally();
+        }
+
+        const changeCustomizationView = async (name: CUSTOMIZATION_VIEW) => {
+            if(active.value) {
+                active.value!.customizedView = name;
+            }
+            
+            await saveLocally();
         }
 
         const fetchWorkspaceFiles = async () => {
@@ -77,39 +164,70 @@ export const useWorkspaceStore = (name: string) => {
                     saveLocally()
                 }
             } catch (error) {
-                
+                console.log(error);
             }
         }
 
         const setActiveFile = (fileNode: FileNode) => {
-            // Set as active file
+            fileNode = window.copy(fileNode);
+
+            if(fileNode.children) {
+                fileNode.children = [];
+            }
+
             active.value!.activeFile = fileNode;
         }
 
         /**
          * Opens a file and captures the previous file's layout state snapshot
          */
-        const openFile = async (fileNode: FileNode, editorInstance: monaco.editor.ICodeEditor | null ): Promise<string | monaco.editor.ICodeEditorViewState | void> => {
+        const openFile = async (fileNode: FileNode, editorInstance: monaco.editor.ICodeEditor | null ): Promise<string | void> => {
+            fileNode = window.copy(fileNode);
+            fileNode.children = [];
+            
+            if(fileNode.type === 'directory') {
+                for (let i = 0; i < active.value!.workspaceFiles.length; i++) {
+                    let file = active.value!.workspaceFiles[i];
+    
+                    if(file.id === fileNode.id) {
+                        active.value!.workspaceFiles[i].expanded = !fileNode.expanded; 
+                        break;
+                    }
+                }
+            }
+            
             if (!fileNode || fileNode.type === 'directory') return;
 
             // Add to tab list if it isn't already open
             const exists = active.value!.openTabs.some(tab => tab.id === fileNode.id);
+            const driveContent = await ReadFile(fileNode.path || "");
+
             if (exists) {
                 for (let i = 0; i < active.value!.openTabs.length; i++) {
-                    let openTab = active.value!.openTabs[i];
+                    const file = active.value!.openTabs[i];
 
-                    if(openTab.id === fileNode.id) {
-                        fileNode.content == openTab.content; break;
+                    if(file.id === fileNode.id) {
+                        if(window.dateToNumber(driveContent["lastUpdate"]) > window.dateToNumber(fileNode.lastUpdate)) {
+                            fileNode.content = driveContent.content; 
+                            fileNode.lastUpdate = driveContent.lastUpdate;
+                        } else {
+                            fileNode.content = file.content;
+                            fileNode.lastUpdate = file.lastUpdate;
+                        }
+                        
+                        break;
                     }
                 }
             } else {
                 try {
-                    let content = await ReadFile(fileNode.path || "");
-                    fileNode.content = content;
+                    fileNode.content = driveContent.content; 
+                    fileNode.lastUpdate = driveContent.lastUpdate;
                 } catch (error: any) {}
                 
                 active.value!.openTabs.push(fileNode);
             }
+
+            active.value!.activeFile = fileNode;
 
             if(editorInstance) {
                 let savedState = active.value!.viewStates[fileNode.id];
@@ -124,16 +242,20 @@ export const useWorkspaceStore = (name: string) => {
             }
 
             saveLocally();
+
+            return driveContent.content;
         }
     
         /**
          * Opens a file and captures the previous file's layout state snapshot
          */
         const storeFileState = (fileNode: FileNode, editorInstance: monaco.editor.ICodeEditor | null): void => {
-            if (!fileNode || fileNode.type === 'directory') return;
+            if (!fileNode || fileNode.type === 'directory') return; 
+            fileNode = window.copy(fileNode);
+            fileNode.children = [];
 
             // Cache the previous file's view state before navigating away
-            if (active.value!.activeFile && editorInstance) {
+            if (fileNode && editorInstance) {
                 fileNode.content = editorInstance.getValue();
 
                 active.value!.viewStates[fileNode.id] = editorInstance.saveViewState();
@@ -178,57 +300,35 @@ export const useWorkspaceStore = (name: string) => {
             active.value!.viewStates[fileId] = null;
             delete active.value!.viewStates[fileId];
     
-            if (active.value!.activeFile?.id === fileId) {
-                if (active.value!.openTabs.length > 0) {
-                    storeFileState(active.value!.openTabs[active.value!.openTabs.length - 1], editorInstance);
-                } else {
-                    active.value!.activeFile = null;
+            if (active.value!.openTabs.length > 0) {
+                storeFileState(active.value!.openTabs[active.value!.openTabs.length - 1], editorInstance);
+                if (active.value!.activeFile?.id === fileId) {
+                    active.value!.activeFile = active.value!.openTabs[active.value!.openTabs.length - 1];
                 }
-            }
-        }
-
-        const openWorkshop = async (path: string | null) => {
-            activePath.value = path;
-
-            if(path) {
-                let id = await generateID(path);
-                let name = path.split("/").pop() || "";
-
-                if(!workspaces[path]) {
-                    workspaces[path] = {
-                        id: id,
-                        name: name,
-                        path: path,
-                        workspaceFiles: [],
-                        openTabs: [],
-                        activeFile: null,
-                        isPinned: false,
-                        viewStates: {},
-                        lastOpened: new Date(),
-                    }
-                } else {
-                    workspaces[path].id = id;
-                    workspaces[path].name = name;
-                    workspaces[path].lastOpened = new Date();
-                }
+            } else {
+                active.value!.activeFile = null;
             }
             
-            await saveLocally();
-            await fetchWorkspaceFiles();
         }
     
         return {
-            workspaces,
+            viewMode,
             active,
             activePath,
+            workspaces,
             openFile,
+            setViewMode,
             setActiveFile,
             closeTab,
+            saveLocally,
             openWorkshop,
             storeFileState,
             restoreFileState,
             fetchWorkspaceFiles,
+            changeCustomizationView,
             loadWorkshops,
+            removeWorkshop,
+            sortWorkshops,
         };
     });
 }
