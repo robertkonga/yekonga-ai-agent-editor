@@ -33,6 +33,10 @@ func (a *App) OpenWorkspaceDialog() (string, error) {
 	return selectedDirectory, nil
 }
 
+func (a *App) CreateDirectory(target string) error {
+	return helper.CreateDirectory(target)
+}
+
 func (a *App) SaveFile(data any, target string) error {
 	err := helper.CreateFile(data, target)
 

@@ -8,6 +8,9 @@
 
     <!--this is component mode of context-menu-->
     <context-menu v-model:show="showMenu" :options="optionsComponent">
+        <context-menu-item v-if="node.type === 'directory'" label="New File" icon="ye-file-plus" @click="contextMenuItemClicked('new_file')" />
+        <context-menu-item v-if="node.type === 'directory'" label="New Folder" icon="ye-folder-plus" @click="contextMenuItemClicked('new_folder')" />
+        <context-menu-divider v-if="node.type === 'directory'" />
         <context-menu-item label="Rename" icon="ye-text" @click="contextMenuItemClicked('rename')" />
         <context-menu-item label="Delete" icon="ye-trash" @click="contextMenuItemClicked('delete')" />
     </context-menu>
@@ -86,6 +89,12 @@ const contextMenuItemClicked = async (name: string) =>{
     } else if(name == 'delete') {
         await DeleteFile(node.value.path!);
         store.fetchWorkspaceFiles();
+    } else if(name == 'new_file') {
+        const fileName = window.prompt("New File Name:");
+        if (fileName) store.createNewFile(node.value.path!, fileName);
+    } else if(name == 'new_folder') {
+        const folderName = window.prompt("New Folder Name:");
+        if (folderName) store.createNewFolder(node.value.path!, folderName);
     }
 }
 </script>

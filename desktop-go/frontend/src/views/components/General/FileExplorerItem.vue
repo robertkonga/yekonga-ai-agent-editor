@@ -1,5 +1,6 @@
 <template>
     <div v-if="node.type === 'directory'" @click="switchFile()"
+        draggable="true" @dragstart="onDragStart" @dragover.prevent @drop.stop="onDrop"
         class="px-2 h-5 text-xs font-medium text-slate-300 cursor-pointer transition relative group ">
         <div class="flex h-full items-center space-x-1 z-20 relative">
             <!-- <svg :class="['size-4 p-px text-indigo-400/80 transition-transform', node.expanded ? 'rotate-90' : '']"
@@ -22,7 +23,9 @@
         </template>
     </div>
 
-    <div v-if="node.type === 'file'" @click="switchFile()" :class="[
+    <div v-if="node.type === 'file'" @click="switchFile()" 
+        draggable="true" @dragstart="onDragStart"
+        :class="[
         'px-2 h-5 text-xs cursor-pointer transition relative group',
     ]">
         <div class="flex h-full items-center space-x-2 z-20 relative">
@@ -82,6 +85,19 @@ const switchFile = async () => {
         store.saveLocally();
     }, 2000)
 };
+
+const onDragStart = (e: DragEvent) => {
+    if (node.value.path) {
+        e.dataTransfer?.setData("text/plain", node.value.path);
+    }
+}
+
+const onDrop = (e: DragEvent) => {
+    const sourcePath = e.dataTransfer?.getData("text/plain");
+    if (sourcePath && node.value.path && node.value.type === 'directory' && sourcePath !== node.value.path) {
+        store.moveFile(sourcePath, node.value.path);
+    }
+}
 
 const background = defineComponent({
     name: 'FastButton',

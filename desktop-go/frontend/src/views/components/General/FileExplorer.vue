@@ -12,24 +12,18 @@
                 <div class="flex items-center justify-between bg-slate-700/30 text-sm pl-3 pr-1 py-1">
                     <span>{{ store.active.path.split('/').pop() }}</span>
                     <div class="flex gap-1">
-                        <span @click="store.fetchWorkspaceFiles()" class="size-5 flex items-center justify-center cursor-pointer group">
+                        <span @click="createFileAtRoot" class="size-5 flex items-center justify-center cursor-pointer group">
                             <i class="ye ye-file-plus text-slate-500 group-hover:text-white"></i>
                         </span>
-                        <span @click="store.fetchWorkspaceFiles()" class="size-5 flex items-center justify-center cursor-pointer group">
+                        <span @click="createFolderAtRoot" class="size-5 flex items-center justify-center cursor-pointer group">
                             <i class="ye ye-folder-plus text-slate-500 group-hover:text-white"></i>
                         </span>
                         <span @click="store.fetchWorkspaceFiles()" class="size-5 flex items-center justify-center cursor-pointer group">
                             <i class="ye ye-rotate text-slate-500 group-hover:text-white"></i>
                         </span>
-                        <!-- <span @click="store.openWorkshop(null)" class="size-5 flex items-center justify-center cursor-pointer group">
-                            <svg class="h-2 w-2 text-slate-500 group-hover:text-white" viewBox="0 0 10 10">
-                                <line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-                                <line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-                            </svg>
-                        </span> -->
                     </div>
                 </div>
-                <div v-for="(node, i) of store.active!.workspaceFiles" :key="node.id">
+                <div @dragover.prevent @drop="onDropRoot" v-for="(node, i) of store.active!.workspaceFiles" :key="node.id">
                     <FileExplorerItem v-model="store.active!.workspaceFiles[i]" :level="0" :isEditor="props.isEditor"></FileExplorerItem>
                 </div>
             </template>
@@ -61,6 +55,26 @@ const store = useWorkspace();
 const openWorkspace = async () => {
     const targetPath = await OpenWorkspaceDialog();
     store.openWorkshop(targetPath);
+}
+
+const createFileAtRoot = () => {
+    if (!store.active) return;
+    const name = window.prompt("New File Name:");
+    if (name) store.createNewFile(store.active.path, name);
+}
+
+const createFolderAtRoot = () => {
+    if (!store.active) return;
+    const name = window.prompt("New Folder Name:");
+    if (name) store.createNewFolder(store.active.path, name);
+}
+
+const onDropRoot = (e: DragEvent) => {
+    if (!store.active) return;
+    const sourcePath = e.dataTransfer?.getData("text/plain");
+    if (sourcePath && sourcePath !== store.active.path) {
+        store.moveFile(sourcePath, store.active.path);
+    }
 }
 
 if(!store.active) {

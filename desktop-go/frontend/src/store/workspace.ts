@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, nextTick, reactive, ref } from 'vue';
 import * as monaco from 'monaco-editor';
-import { ReadDirectory, ReadFile, ListSessions } from '@wails/go/main/App';
+import { ReadDirectory, ReadFile, ListSessions, SaveFile, CreateDirectory, MoveFile } from '@wails/go/main/App';
 import YekongaDatabase from '@/scripts/database';
 
 const WORKSHOP_TABLE = "workshops"
@@ -165,6 +165,40 @@ export const useWorkspaceStore = (name: string) => {
             if (!active.value) return;
             active.value.changedFiles = active.value.changedFiles.filter(f => f.path !== path);
             saveLocally();
+        }
+
+        const createNewFile = async (parentPath: string, name: string) => {
+            if (!active.value) return;
+            const path = parentPath + "/" + name;
+            try {
+                await SaveFile("", path);
+                await fetchWorkspaceFiles();
+            } catch (error) {
+                console.error("Failed to create file:", error);
+            }
+        }
+
+        const createNewFolder = async (parentPath: string, name: string) => {
+            if (!active.value) return;
+            const path = parentPath + "/" + name;
+            try {
+                await CreateDirectory(path);
+                await fetchWorkspaceFiles();
+            } catch (error) {
+                console.error("Failed to create folder:", error);
+            }
+        }
+
+        const moveFile = async (sourcePath: string, destPath: string) => {
+            if (!active.value) return;
+            const fileName = sourcePath.split("/").pop();
+            const targetPath = destPath + "/" + fileName;
+            try {
+                await MoveFile(sourcePath, targetPath);
+                await fetchWorkspaceFiles();
+            } catch (error) {
+                console.error("Failed to move file:", error);
+            }
         }
 
         const fetchSessions = async () => {
@@ -366,6 +400,9 @@ export const useWorkspaceStore = (name: string) => {
             trackChange,
             clearChange,
             fetchSessions,
+            createNewFile,
+            createNewFolder,
+            moveFile,
         };
     });
 }

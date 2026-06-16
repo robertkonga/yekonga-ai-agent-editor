@@ -7,6 +7,8 @@ export function AgentChat(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function CopyFile(arg1:string,arg2:string):Promise<void>;
 
+export function CreateDirectory(arg1:string):Promise<void>;
+
 export function DeleteFile(arg1:string):Promise<void>;
 
 export function GetSession(arg1:string):Promise<agent.Session>;
