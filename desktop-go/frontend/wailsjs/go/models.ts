@@ -1,22 +1,3 @@
-export namespace agent {
-	
-	export class ChatMessage {
-	    role: string;
-	    content: any;
-	
-	    static createFrom(source: any = {}) {
-	        return new ChatMessage(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.role = source["role"];
-	        this.content = source["content"];
-	    }
-	}
-
-}
-
 export namespace types {
 	
 	export class FileNode {
