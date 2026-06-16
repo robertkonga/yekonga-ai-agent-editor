@@ -106,7 +106,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useWorkspace } from '@/store/workspace'
-import { GenerateProject } from '@wails/go/app/App'
+// import { GenerateProject } from '@wails/go/app/App'
 import { EventsOn, EventsOff } from '@wails/runtime/runtime'
 
 interface ScaffoldProgress {
@@ -213,7 +213,7 @@ const sendMessage = async () => {
     resetScaffold()
 
     try {
-        await GenerateProject(text, store.active?.path ?? '', '')
+        // await GenerateProject(text, store.active?.path ?? '', '')
         // Final message is pushed inside the EventsOn handler above
     } catch (err: any) {
         isAiThinking.value = false

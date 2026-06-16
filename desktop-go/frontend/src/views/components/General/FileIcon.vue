@@ -3,7 +3,7 @@
         :aria-label="`${resolvedExt} file icon`" role="img">
         <!-- <rect x="0" y="0" :width="size" :height="size" rx="4" :fill="config.bg" /> -->
         <!-- <polygon points="28,0 40,12 40,48 0,48 0,0" :fill="config.bg" /> -->
-        <polyline points="28,0 28,12 40,12" fill="none" :stroke="config.fold" stroke-width="1" />
+        <!-- <polyline points="28,0 28,12 40,12" fill="none" :stroke="config.fold" stroke-width="1" /> -->
         <text x="14" y="14" text-anchor="middle" :font-size="labelFontSize" font-weight="700"
             font-family="'JetBrains Mono', 'Fira Code', 'Courier New', monospace" :fill="config.color">
             {{ config.label  }}
@@ -180,7 +180,7 @@ const FALLBACK: IconConfig = {
     bg: '#1E1E1E',
     fold: '#2A2A2A',
     color: '#858585',
-    label: '?',
+    label: 'FILE',
 }
 
 const resolvedExt = computed(() => {
@@ -211,10 +211,11 @@ const config = computed<IconConfig>(() => {
 
 const labelFontSize = computed(() => {
     const len = config.value.label.length;
+    let size = 0.7;
 
-    if (len <= 2) return 14;
-    if (len <= 3) return 13.5;
+    if (len <= 2) size = 0.7;
+    if (len <= 3) size = 0.7;
 
-    return 13.4
+    return `${size}rem`
 })
 </script>

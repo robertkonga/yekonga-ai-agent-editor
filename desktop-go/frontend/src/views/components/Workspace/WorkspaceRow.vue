@@ -1,16 +1,18 @@
 
 <template>
-    <div class="group relative flex cursor-pointer items-center gap-3 rounded px-2 py-2 transition-colors hover:bg-slate-800"
+    <div class="group relative flex cursor-pointer items-center gap-3 rounded-md pl-3 pr-4 transition-colors hover:bg-slate-800 border border-slate-800/50"
         @click="emit('open')" @mouseenter="emit('mouseenter')" @mouseleave="emit('mouseleave')">
         <!-- Folder icon -->
-        <svg class="shrink-0 text-[#c5a028]" width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <!-- <svg class="size-9 shrink-0 text-[#c5a028]" viewBox="0 0 16 16" fill="none">
             <path
                 d="M1.5 4C1.5 3.17 2.17 2.5 3 2.5H6L7.5 4H13C13.83 4 14.5 4.67 14.5 5.5V12C14.5 12.83 13.83 13.5 13 13.5H3C2.17 13.5 1.5 12.83 1.5 12V4Z"
                 fill="currentColor" opacity="0.85" />
-        </svg>
+        </svg> -->
+
+        <span class="text-blue-500 flex items-center py-2"><i class="ye ye-folder-closed text-2xl"></i></span>
 
         <!-- Name + path -->
-        <div @click="store.openWorkshop(workspace.path)" class="min-w-0 flex-1">
+        <div @click="store.openWorkshop(workspace.path)" class="cursor-pointer min-w-0 flex-1">
             <div class="flex items-center gap-1.5">
                 <span class="truncate text-[12px] font-medium text-[#e8e8e8]">{{ workspace.name }}</span>
                 <!-- Pin badge -->
@@ -27,8 +29,8 @@
         </span>
 
         <!-- Remove button (shown on hover) -->
-        <button
-            class="absolute right-2 hidden shrink-0 rounded p-0.5 text-[#555] hover:bg-[#3c3c3c] hover:text-[#cccccc] group-hover:flex"
+        <button @click="store.removeWorkshop(workspace.path)"
+            class="cursor-pointer absolute right-2 hidden shrink-0 rounded p-2 text-[#555] hover:bg-[#3c3c3c] hover:text-[#cccccc] group-hover:flex"
             title="Remove from recent" aria-label="Remove from recent" @click.stop="emit('remove')">
             <svg width="10" height="10" viewBox="0 0 10 10">
                 <line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
