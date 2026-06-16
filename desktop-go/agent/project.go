@@ -27,8 +27,9 @@ const (
 
 const scaffoldSystemPrompt = `You are a project scaffolding agent embedded in a code editor.
 When given a project description, respond ONLY with a valid JSON object — no markdown fences,
-no explanation, no preamble. The JSON must match this exact schema:
+no explanation, no preamble. 
 
+The JSON must match this exact schema:
 {
   "name": "project-name",
   "description": "one-line summary",

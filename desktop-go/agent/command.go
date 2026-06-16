@@ -9,7 +9,7 @@ import (
 
 func (a *Agent) ClientAgent(contents string) {
 	ctx := context.Background()
-
+	var temperature float32 = 0.1
 	instructionString := a.getSystemInstruction("instruction")
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
@@ -24,7 +24,7 @@ func (a *Agent) ClientAgent(contents string) {
 		"gemini-3.5-flash",
 		genai.Text(contents),
 		&genai.GenerateContentConfig{
-			Temperature:      0.1,
+			Temperature:      &temperature,
 			ResponseMIMEType: "application/json", // Crucial for reliable parsing
 			SystemInstruction: &genai.Content{
 				Parts: []*genai.Part{
