@@ -370,24 +370,26 @@ var agentTools = []provider.Tool{
 		Name:        "list_templates",
 		Description: "List all available code generation templates.",
 		InputSchema: provider.Schema{
-			Type: "object",
+			Type:       "object",
+			Properties: map[string]provider.Property{},
 		},
 	},
 
 	// ── Workspace ─────────────────────────────────────────────────────────────
-
 	{
 		Name:        "get_active_workspace_path",
 		Description: "Get the absolute path of the currently open workspace/project.",
 		InputSchema: provider.Schema{
-			Type: "object",
+			Type:       "object",
+			Properties: map[string]provider.Property{},
 		},
 	},
 	{
 		Name:        "get_active_file",
 		Description: "Get the absolute path and content of the file currently open in the editor.",
 		InputSchema: provider.Schema{
-			Type: "object",
+			Type:       "object",
+			Properties: map[string]provider.Property{},
 		},
 	},
 	{
