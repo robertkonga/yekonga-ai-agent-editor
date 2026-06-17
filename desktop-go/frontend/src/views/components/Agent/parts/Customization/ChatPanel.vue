@@ -89,27 +89,66 @@
                             ></textarea>
                         </div>
 
-                        <div class="px-3 py-2 flex items-center justify-between border-t border-slate-800/60 gap-2">
+                        <div class="px-2 py-2 flex items-center justify-between border-t border-slate-800/60 gap-2">
                             <!-- Left: provider + model selectors -->
                             <div class="flex items-center gap-2 min-w-0">
                                 <!-- Provider pill selector -->
-                                <div class="flex items-center rounded-md border border-slate-700/60 bg-slate-800/60 p-0.5 gap-0.5 shrink-0">
+                                
+                                <!-- Model dropdown -->
+                                <div class="relative min-w-0" ref="modelDropdownRef">
                                     <button
-                                        v-for="p in providerOptions"
-                                        :key="p.value"
                                         type="button"
-                                        :title="p.label"
-                                        :class="[
-                                            'flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-all duration-150',
-                                            selectedProvider === p.value
-                                                ? 'bg-slate-700 text-slate-100 shadow-sm'
-                                                : 'text-slate-500 hover:text-slate-300'
-                                        ]"
-                                        @click="onProviderChange(p.value)"
+                                        class="flex items-center gap-1.5 px-2 py-1 rounded-md border border-slate-700/60 bg-slate-800/60 text-[10px] text-slate-300 hover:text-slate-100 hover:border-slate-600 transition-all duration-150 max-w-[140px]"
+                                        @click="providerModelDropdownOpen = !providerModelDropdownOpen"
                                     >
-                                        <span>{{ p.icon }}</span>
-                                        <span>{{ p.label }}</span>
+                                        <span class="truncate font-mono">{{ selectedProvider }}</span>
+                                        <svg class="shrink-0 text-slate-500 transition-transform duration-150"
+                                            :class="{ 'rotate-180': providerModelDropdownOpen }"
+                                            width="8" height="8" viewBox="0 0 10 10" fill="none">
+                                            <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
                                     </button>
+
+                                    <!-- Model menu -->
+                                    <Transition
+                                        enter-active-class="transition duration-100 ease-out"
+                                        enter-from-class="opacity-0 -translate-y-1"
+                                        leave-active-class="transition duration-75 ease-in"
+                                        leave-to-class="opacity-0 -translate-y-1"
+                                    >
+                                        <div v-if="providerModelDropdownOpen"
+                                            class="absolute bottom-full left-0 mb-1.5 z-50 min-w-45 rounded-lg border border-slate-700/80 bg-slate-900 shadow-xl shadow-black/40 overflow-hidden"
+                                        >
+                                            <div class="px-2 pt-2 pb-1 border-b border-slate-800/60">
+                                                <p class="text-[9px] font-semibold uppercase tracking-wider text-slate-500">
+                                                    Select Provider
+                                                </p>
+                                            </div>
+                                            <div class="py-1 max-h-48 overflow-y-auto">
+                                                <template v-for="group in providerOptions" :key="group.value">
+                                                    
+                                                    <button
+                                                        type="button"
+                                                        :class="[
+                                                            'w-full flex items-center justify-between gap-2 px-3 py-1.5 text-left transition-colors duration-100',
+                                                            selectedProvider === group.value
+                                                                ? 'bg-indigo-500/20 text-indigo-300'
+                                                                : 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
+                                                        ]"
+                                                        @click="onProviderChange(group.value)"
+                                                    >
+                                                        <span class="flex flex-col min-w-0">
+                                                            <span class="text-[11px] font-mono truncate">{{ group.label }}</span>
+                                                        </span>
+                                                        <svg v-if="selectedProvider === group.value"
+                                                            class="shrink-0 text-indigo-400" width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                                            <path d="M1.5 5L4 7.5L8.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        </svg>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </Transition>
                                 </div>
 
                                 <!-- Model dropdown -->
@@ -213,7 +252,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useWorkspace } from '@/store/workspace'
 import { EventsOn, EventsOff } from '@wails/runtime/runtime'
 import { AgentChat, LoadConfigFromFile } from '@wails/go/main/App'
-import { providerOptions, type ModelGroup } from './ChatPanel'
+import { providerOptions, type ModelGroup, type ProviderConfig } from './ChatPanel'
 
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -230,6 +269,7 @@ const store = useWorkspace()
 
 const selectedProvider = ref<string>('ollama')
 const selectedModel    = ref<string>('qwen3:8b')
+const providerModelDropdownOpen = ref(false)
 const modelDropdownOpen = ref(false)
 const modelDropdownRef  = ref<HTMLElement | null>(null)
 
@@ -238,12 +278,7 @@ const userInput = ref('')
 const isAiThinking = ref(false)
 const currentSessionID = ref<string>('session-' + Math.random().toString(36).substring(2, 9))
 
-const messages = ref<{ role: string; content: string }[]>([
-    // {
-    //     role: 'assistant',
-    //     content: 'Welcome back! I have context access to your workspace structure. Pick any file from the explorer to begin refactoring.',
-    // },
-])
+const messages = ref<{ role: string; content: string }[]>([])
 
 const newSession = computed<boolean>(()=>(messages.value.length == 0))
 
@@ -275,7 +310,7 @@ function onProviderChange(value: string) {
     selectedProvider.value = value
     const p = providerOptions.find(p => p.value === value)
     if (p) selectedModel.value = p.defaultModel
-    modelDropdownOpen.value = false
+    providerModelDropdownOpen.value = false
 }
 
 function onModelChange(value: string) {

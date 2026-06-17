@@ -62,6 +62,8 @@ export const providerOptions: ProviderConfig[] = [
                 models: [
                     { label: 'deepseek-chat',     value: 'deepseek-chat',     description: 'V3 · general purpose' },
                     { label: 'deepseek-reasoner', value: 'deepseek-reasoner', description: 'R1 · chain-of-thought' },
+                    { label: 'DeepSeek-V4-Flash', value: 'deepseek-v4-flash', description: 'R1 · chain-of-thought' },
+                    { label: 'DeepSeek-V4-Pro',   value: 'deepseek-v4-pro',   description: 'R1 · chain-of-thought' },
                 ],
             },
         ],
