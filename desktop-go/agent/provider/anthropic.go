@@ -1,4 +1,4 @@
-package agent
+package provider
 
 import (
 	"bytes"
@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+	"yekonga-builder/agent/types"
+	"yekonga-builder/console"
 )
 
 const (
@@ -19,17 +21,19 @@ const (
 
 type AnthropicProvider struct {
 	apiKey     string
+	modelName  string
 	httpClient *http.Client
 }
 
-func NewAnthropicProvider(apiKey string) *AnthropicProvider {
+func NewAnthropicProvider(apiKey string, modelName string) *AnthropicProvider {
 	return &AnthropicProvider{
 		apiKey:     apiKey,
+		modelName:  modelName,
 		httpClient: &http.Client{Timeout: anthropicTimeout},
 	}
 }
 
-func (p *AnthropicProvider) Complete(ctx context.Context, system string, history []ChatMessage, tools []Tool) (*LLMResponse, error) {
+func (p *AnthropicProvider) Complete(ctx context.Context, system string, history []types.ChatMessage, tools []Tool) (*LLMResponse, error) {
 	messages := make([]llmMessage, len(history))
 	for i, msg := range history {
 		content := ""
@@ -51,6 +55,7 @@ func (p *AnthropicProvider) Complete(ctx context.Context, system string, history
 	}
 
 	payload, err := json.Marshal(reqBody)
+	console.Error("anthropic.payload", string(payload))
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}

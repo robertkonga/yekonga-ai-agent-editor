@@ -7,13 +7,14 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"yekonga-builder/agent/types"
 )
 
 type Session struct {
-	ID          string        `json:"id"`
-	Provider    string        `json:"provider"`
-	History     []ChatMessage `json:"history"`
-	LastUpdated time.Time     `json:"last_updated"`
+	ID          string              `json:"id"`
+	Provider    string              `json:"provider"`
+	History     []types.ChatMessage `json:"history"`
+	LastUpdated time.Time           `json:"last_updated"`
 }
 
 type SessionManager struct {
@@ -64,7 +65,7 @@ func (m *SessionManager) GetSession(id string) (*Session, error) {
 
 func (m *SessionManager) SaveSession(s *Session) error {
 	s.LastUpdated = time.Now()
-	
+
 	m.mu.Lock()
 	m.sessions[s.ID] = s
 	m.mu.Unlock()

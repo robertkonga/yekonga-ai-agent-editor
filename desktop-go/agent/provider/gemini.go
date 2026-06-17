@@ -1,4 +1,4 @@
-package agent
+package provider
 
 import (
 	"bytes"
@@ -8,27 +8,32 @@ import (
 	"io"
 	"net/http"
 	"time"
+	"yekonga-builder/agent/types"
+	"yekonga-builder/console"
 )
 
 const (
-	geminiAPI     = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s"
-	geminiModel   = "gemini-2.0-flash"
+	geminiAPI = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s"
+	// geminiModel   = "gemini-2.5-flash"
+	geminiModel   = "gemini-3.1-flash-lite" // gemini-3.1-pro | gemini-3.5-flash | gemini-3.1-flash-lite | gemini-3-flash | gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite
 	geminiTimeout = 120 * time.Second
 )
 
 type GeminiProvider struct {
 	apiKey     string
+	modelName  string
 	httpClient *http.Client
 }
 
-func NewGeminiProvider(apiKey string) *GeminiProvider {
+func NewGeminiProvider(apiKey string, modelName string) *GeminiProvider {
 	return &GeminiProvider{
 		apiKey:     apiKey,
+		modelName:  modelName,
 		httpClient: &http.Client{Timeout: geminiTimeout},
 	}
 }
 
-func (p *GeminiProvider) Complete(ctx context.Context, system string, history []ChatMessage, tools []Tool) (*LLMResponse, error) {
+func (p *GeminiProvider) Complete(ctx context.Context, system string, history []types.ChatMessage, tools []Tool) (*LLMResponse, error) {
 	req := geminiRequest{
 		SystemInstruction: &geminiContent{
 			Parts: []geminiPart{{Text: system}},
@@ -37,16 +42,28 @@ func (p *GeminiProvider) Complete(ctx context.Context, system string, history []
 		GenerationConfig: &geminiConfig{
 			MaxOutputTokens: 8192,
 			Temperature:     0.2,
+			ThinkingConfig: &geminiThinkingConfig{
+				ThinkingBudget: 0, // 0 = disable thinking
+			},
 		},
 	}
 
 	if len(tools) > 0 {
+		declarations := make([]geminiFunctionDeclaration, len(tools))
+		for i, t := range tools {
+			declarations[i] = geminiFunctionDeclaration{
+				Name:        t.Name,
+				Description: t.Description,
+				Parameters:  t.InputSchema,
+			}
+		}
 		req.Tools = []geminiTool{
-			{FunctionDeclarations: tools},
+			{FunctionDeclarations: declarations},
 		}
 	}
 
 	payload, err := json.Marshal(req)
+	console.Error("gemini.payload", string(payload))
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
@@ -69,6 +86,8 @@ func (p *GeminiProvider) Complete(ctx context.Context, system string, history []
 		return nil, fmt.Errorf("read body: %w", err)
 	}
 
+	console.Error("gemini.response", string(body))
+
 	var result geminiResponse
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("parse response: %w", err)
@@ -89,11 +108,12 @@ func (p *GeminiProvider) Complete(ctx context.Context, system string, history []
 		}
 		if part.FunctionCall != nil {
 			input, _ := json.Marshal(part.FunctionCall.Args)
-			response.ToolCalls = append(response.ToolCalls, ContentBlock{
-				Type:  "tool_use",
-				ID:    fmt.Sprintf("call_%d", time.Now().UnixNano()), // Gemini doesn't always provide IDs in v1beta
-				Name:  part.FunctionCall.Name,
-				Input: input,
+			response.ToolCalls = append(response.ToolCalls, types.ContentBlock{
+				Type:             "tool_use",
+				ID:               fmt.Sprintf("call_%d", time.Now().UnixNano()), // Gemini doesn't always provide IDs in v1beta
+				Name:             part.FunctionCall.Name,
+				Input:            input,
+				ThoughtSignature: part.ThoughtSignature, // ← carry it
 			})
 		}
 	}
@@ -119,9 +139,12 @@ type geminiPart struct {
 	Text             string            `json:"text,omitempty"`
 	FunctionCall     *functionCall     `json:"functionCall,omitempty"`
 	FunctionResponse *functionResponse `json:"functionResponse,omitempty"`
+	Thought          bool              `json:"thought,omitempty"`          // thinking text marker
+	ThoughtSignature string            `json:"thoughtSignature,omitempty"` // ← add this
 }
 
 type functionCall struct {
+	ID   string         `json:"id,omitempty"` // use this instead of generating your own
 	Name string         `json:"name"`
 	Args map[string]any `json:"args"`
 }
@@ -131,13 +154,24 @@ type functionResponse struct {
 	Response map[string]any `json:"response"`
 }
 
+type geminiFunctionDeclaration struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Parameters  Schema `json:"parameters"`
+}
+
 type geminiTool struct {
-	FunctionDeclarations []Tool `json:"function_declarations"`
+	FunctionDeclarations []geminiFunctionDeclaration `json:"function_declarations"`
 }
 
 type geminiConfig struct {
-	MaxOutputTokens int     `json:"maxOutputTokens,omitempty"`
-	Temperature     float64 `json:"temperature,omitempty"`
+	MaxOutputTokens int                   `json:"maxOutputTokens,omitempty"`
+	Temperature     float64               `json:"temperature,omitempty"`
+	ThinkingConfig  *geminiThinkingConfig `json:"thinkingConfig"`
+}
+
+type geminiThinkingConfig struct {
+	ThinkingBudget int `json:"thinkingBudget"`
 }
 
 type geminiResponse struct {
@@ -156,7 +190,7 @@ type geminiError struct {
 	Status  string `json:"status"`
 }
 
-func toGeminiContents(history []ChatMessage) []geminiContent {
+func toGeminiContents(history []types.ChatMessage) []geminiContent {
 	contents := make([]geminiContent, 0, len(history))
 	for _, msg := range history {
 		role := msg.Role
@@ -169,19 +203,21 @@ func toGeminiContents(history []ChatMessage) []geminiContent {
 		switch v := msg.Content.(type) {
 		case string:
 			parts = []geminiPart{{Text: v}}
-		case []ContentBlock:
+		case []types.ContentBlock:
 			for _, block := range v {
-				if block.Type == "tool_result" {
+				switch block.Type {
+				case "tool_result":
 					parts = append(parts, geminiPart{
 						FunctionResponse: &functionResponse{
 							Name:     block.Name, // We need to ensure Name is preserved
 							Response: map[string]any{"result": block.Content},
 						},
 					})
-				} else if block.Type == "tool_use" {
+				case "tool_use":
 					var args map[string]any
 					json.Unmarshal(block.Input, &args)
 					parts = append(parts, geminiPart{
+						ThoughtSignature: block.ThoughtSignature, // ← echo back
 						FunctionCall: &functionCall{
 							Name: block.Name,
 							Args: args,
@@ -192,14 +228,25 @@ func toGeminiContents(history []ChatMessage) []geminiContent {
 		case []any:
 			// If it's from JSON unmarshal, it might be []any
 			data, _ := json.Marshal(v)
-			var blocks []ContentBlock
+			var blocks []types.ContentBlock
 			if err := json.Unmarshal(data, &blocks); err == nil {
 				for _, block := range blocks {
-					if block.Type == "tool_result" {
+					switch block.Type {
+					case "tool_result":
 						parts = append(parts, geminiPart{
 							FunctionResponse: &functionResponse{
 								Name:     block.Name,
 								Response: map[string]any{"result": block.Content},
+							},
+						})
+					case "tool_use":
+						var args map[string]any
+						json.Unmarshal(block.Input, &args)
+						parts = append(parts, geminiPart{
+							ThoughtSignature: block.ThoughtSignature, // ← echo back
+							FunctionCall: &functionCall{
+								Name: block.Name,
+								Args: args,
 							},
 						})
 					}

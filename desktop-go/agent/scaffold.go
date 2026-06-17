@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"yekonga-builder/agent/provider"
+	agentTypes "yekonga-builder/agent/types"
 	"yekonga-builder/types"
 )
 
@@ -88,7 +90,7 @@ func validatePlan(plan *types.ScaffoldPlan) error {
 // GenerateProject is the Wails-bound method called from the Vue frontend.
 func (a *Agent) GenerateProject(userPrompt string, rootPath string, extraConventions string) error {
 	// Default to Anthropic for scaffolding as it's typically better at large JSON
-	provider := NewAnthropicProvider(a.ApiKey)
+	provider := provider.NewAnthropicProvider(a.ApiKey, "")
 
 	system := scaffoldSystemPrompt
 	if strings.TrimSpace(extraConventions) != "" {
@@ -100,7 +102,7 @@ func (a *Agent) GenerateProject(userPrompt string, rootPath string, extraConvent
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	resp, err := provider.Complete(ctx, system, []ChatMessage{{Role: "user", Content: userPrompt}}, nil)
+	resp, err := provider.Complete(ctx, system, []agentTypes.ChatMessage{{Role: "user", Content: userPrompt}}, nil)
 	if err != nil {
 		a.Emit(types.ScaffoldProgress{Error: err.Error(), Done: true})
 		return err

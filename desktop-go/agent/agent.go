@@ -3,13 +3,14 @@ package agent
 import (
 	"context"
 	"embed"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
+	"yekonga-builder/agent/provider"
+	"yekonga-builder/agent/types"
 	"yekonga-builder/console"
-	"yekonga-builder/types"
+	fileTypes "yekonga-builder/types"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -17,42 +18,42 @@ import (
 //go:embed all:templates
 var assets embed.FS
 
+type ApiKeys struct {
+	ApiKey          string
+	AnthropicApiKey string
+	GeminiApiKey    string
+	DeepseekApiKey  string
+}
+
 type Agent struct {
-	ApiKey         string
-	ActivePath     string
-	ctx            *context.Context
-	sessionManager *SessionManager
+	ApiKey          string
+	AnthropicApiKey string
+	GeminiApiKey    string
+	DeepseekApiKey  string
+	ActivePath      string
+	OllamaHost      string
+	ctx             *context.Context
+	sessionManager  *SessionManager
 }
 
-type ChatMessage struct {
-	Role    string `json:"role"`
-	Content any    `json:"content"` // string OR []ContentBlock
-}
-
-type ContentBlock struct {
-	Type      string          `json:"type"`
-	Text      string          `json:"text,omitempty"`
-	ID        string          `json:"id,omitempty"`          // tool_use
-	Name      string          `json:"name,omitempty"`        // tool_use
-	Input     json.RawMessage `json:"input,omitempty"`       // tool_use
-	ToolUseID string          `json:"tool_use_id,omitempty"` // tool_result
-	Content   string          `json:"content,omitempty"`     // tool_result
-}
-
-func NewAgent(apiKey string, ctx *context.Context) *Agent {
+func NewAgent(apiKeys ApiKeys, ollamaHost string, ctx *context.Context) *Agent {
 	configDir, _ := os.UserConfigDir()
 	storageDir := filepath.Join(configDir, "YekongaEditor", "sessions")
 
 	sm, _ := NewSessionManager(storageDir)
 
 	return &Agent{
-		ApiKey:         apiKey,
-		ctx:            ctx,
-		sessionManager: sm,
+		ApiKey:          apiKeys.ApiKey,
+		GeminiApiKey:    apiKeys.GeminiApiKey,
+		AnthropicApiKey: apiKeys.AnthropicApiKey,
+		DeepseekApiKey:  apiKeys.DeepseekApiKey,
+		OllamaHost:      ollamaHost,
+		ctx:             ctx,
+		sessionManager:  sm,
 	}
 }
 
-func (a *Agent) Emit(p types.ScaffoldProgress) {
+func (a *Agent) Emit(p fileTypes.ScaffoldProgress) {
 	runtime.EventsEmit(*a.ctx, "scaffold:progress", p)
 }
 
@@ -75,8 +76,9 @@ func (a *Agent) GetSession(id string) (*Session, error) {
 }
 
 // AgentChat is bound to Wails — called from Vue when user sends a message.
-func (a *Agent) AgentChat(sessionID string, userMessage string, providerName string) error {
+func (a *Agent) AgentChat(sessionID string, userMessage string, providerName string, modelName string) error {
 	// 1. Get or create session
+	executor := NewToolExecutor(a)
 	session, err := a.sessionManager.GetSession(sessionID)
 	if err != nil {
 		return err
@@ -85,28 +87,36 @@ func (a *Agent) AgentChat(sessionID string, userMessage string, providerName str
 		session = &Session{
 			ID:          sessionID,
 			Provider:    providerName,
-			History:     []ChatMessage{},
+			History:     []types.ChatMessage{},
 			LastUpdated: time.Now(),
 		}
 	}
 
-	// 2. Select provider
-	var provider LLMProvider
-	if session.Provider == "anthropic" {
-		provider = NewAnthropicProvider(a.ApiKey)
-	} else {
-		provider = NewGeminiProvider(a.ApiKey)
+	console.Log(providerName, modelName, userMessage)
+
+	// 2. Select selectedProvider
+	var selectedProvider provider.LLMProvider
+	switch session.Provider {
+	case "anthropic":
+		selectedProvider = provider.NewAnthropicProvider(a.AnthropicApiKey, modelName)
+	case "gemini":
+		selectedProvider = provider.NewGeminiProvider(a.GeminiApiKey, modelName)
+	case "deepseek":
+		selectedProvider = provider.NewDeepSeekProvider(a.DeepseekApiKey, modelName)
+	default:
+		selectedProvider = provider.NewOllamaProviderWithURL(modelName, a.OllamaHost)
 	}
 
+	console.Log("deepSeekBaseURL", selectedProvider)
 	// 3. Append user message
-	session.History = append(session.History, ChatMessage{
+	session.History = append(session.History, types.ChatMessage{
 		Role:    "user",
 		Content: userMessage,
 	})
 
 	// 4. Agentic loop
 	for {
-		resp, err := provider.Complete(
+		resp, err := selectedProvider.Complete(
 			context.Background(),
 			agentSystemPrompt,
 			session.History,
@@ -123,13 +133,25 @@ func (a *Agent) AgentChat(sessionID string, userMessage string, providerName str
 		}
 
 		// Add assistant response to history
-		assistantMsg := ChatMessage{
-			Role:    "assistant",
-			Content: resp.Content,
+		assistantMsg := types.ChatMessage{
+			Role: "assistant",
 		}
 
+		// if len(resp.ToolCalls) > 0 {
+		// 	// assistantMsg.Content = resp.ToolCalls
+		// }
 		if len(resp.ToolCalls) > 0 {
-			assistantMsg.Content = resp.ToolCalls
+			var blocks []types.ContentBlock
+			if resp.Content != "" {
+				blocks = append(blocks, types.ContentBlock{
+					Type:    "text",
+					Content: resp.Content,
+				})
+			}
+			blocks = append(blocks, resp.ToolCalls...)
+			assistantMsg.Content = blocks
+		} else {
+			assistantMsg.Content = resp.Content
 		}
 		session.History = append(session.History, assistantMsg)
 
@@ -141,19 +163,19 @@ func (a *Agent) AgentChat(sessionID string, userMessage string, providerName str
 		}
 
 		// Execute tools
-		var toolResults []ContentBlock
+		var toolResults []types.ContentBlock
 		for _, call := range resp.ToolCalls {
 			runtime.EventsEmit(*a.ctx, "agent:tool", map[string]string{
 				"name":  call.Name,
 				"input": string(call.Input),
 			})
 
-			result, toolErr := a.executeTool(call.Name, call.Input)
+			result, toolErr := executor.Execute(call.Name, call.Input)
 			if toolErr != nil {
 				result = fmt.Sprintf("error: %s", toolErr.Error())
 			}
 
-			toolResults = append(toolResults, ContentBlock{
+			toolResults = append(toolResults, types.ContentBlock{
 				Type:      "tool_result",
 				Name:      call.Name,
 				ToolUseID: call.ID,
@@ -162,7 +184,7 @@ func (a *Agent) AgentChat(sessionID string, userMessage string, providerName str
 		}
 
 		// Add results to history and continue loop
-		session.History = append(session.History, ChatMessage{
+		session.History = append(session.History, types.ChatMessage{
 			Role:    "user",
 			Content: toolResults,
 		})
