@@ -4,36 +4,51 @@
         <!-- Label -->
         <label v-if="label" :for="id" class="cd-label">{{ label }}</label>
 
+
         <!-- Trigger -->
-        <button :id="id" ref="triggerRef" type="button" role="combobox" :aria-expanded="open" :aria-haspopup="'listbox'"
-            :aria-disabled="disabled" :disabled="disabled" class="cd-trigger"
-            :class="[sizeClasses.trigger, { 'cd-trigger--open': open }]" @click="toggleMenu"
-            @keydown="onTriggerKeydown">
-            <!-- Selected value -->
-            <span class="cd-trigger__value">
-                <span v-if="selectedOption?.icon" class="cd-icon" aria-hidden="true">
-                    {{ selectedOption.icon }}
-                </span>
-                <span :class="selectedOption ? 'cd-trigger__label' : 'cd-trigger__placeholder'">
-                    {{ selectedOption?.label ?? placeholder }}
-                </span>
-            </span>
+        <template v-if="(!!slots.button)">
+            <div :id="id" ref="triggerRef" type="button" role="combobox" 
+                :aria-expanded="open" 
+                :aria-haspopup="'listbox'"
+                :aria-disabled="disabled" 
+                :disabled="disabled" 
+                @click="toggleMenu"
+                @keydown="onTriggerKeydown">
+                <slot name="button" v-bind:value="modelValue" v-bind:open="open" v-bind:label="selectedOption?.label ?? placeholder"></slot>
+            </div>
+        </template>
+        <template v-else>
+            <button :id="id" ref="triggerRef" type="button" role="combobox" :aria-expanded="open" :aria-haspopup="'listbox'"
+                :aria-disabled="disabled" :disabled="disabled" class="cd-trigger"
+                :class="[sizeClasses.trigger, { 'cd-trigger--open': open }]" @click="toggleMenu"
+                @keydown="onTriggerKeydown">
 
-            <!-- Clear -->
-            <span v-if="clearable && modelValue != null" class="cd-clear" aria-label="Clear selection" role="button"
-                tabindex="-1" @click="clear">
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                    <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                <!-- Selected value -->
+                <span class="cd-trigger__value">
+                    <span v-if="selectedOption?.icon" class="cd-icon" aria-hidden="true">
+                        {{ selectedOption.icon }}
+                    </span>
+                    <span :class="selectedOption ? 'cd-trigger__label' : 'cd-trigger__placeholder'">
+                        {{ selectedOption?.label ?? placeholder }}
+                    </span>
+                </span>
+    
+                <!-- Clear -->
+                <span v-if="clearable && modelValue != null" class="cd-clear" aria-label="Clear selection" role="button"
+                    tabindex="-1" @click="clear">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                        <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    </svg>
+                </span>
+    
+                <!-- Chevron -->
+                <svg class="cd-chevron" :class="{ 'cd-chevron--open': open }" width="10" height="10" viewBox="0 0 10 10"
+                    fill="none" aria-hidden="true">
+                    <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                        stroke-linejoin="round" />
                 </svg>
-            </span>
-
-            <!-- Chevron -->
-            <svg class="cd-chevron" :class="{ 'cd-chevron--open': open }" width="10" height="10" viewBox="0 0 10 10"
-                fill="none" aria-hidden="true">
-                <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
-                    stroke-linejoin="round" />
-            </svg>
-        </button>
+            </button>
+        </template>
 
         <!-- Dropdown menu -->
         <Transition name="cd-menu">
@@ -137,6 +152,13 @@ const emit = defineEmits<{
     'close': []
     'search': [query: string]
 }>()
+
+
+const slots = defineSlots<{
+    button(props: { value: any, label: string, open?: boolean }): any
+    item(props: { item: T }): any
+    default(props: { options: DropdownOption[] }): any
+}>();
 
 // ── State ─────────────────────────────────────────────────────────────────
 
