@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 	"yekonga-builder/agent/types"
 	"yekonga-builder/console"
@@ -19,7 +20,7 @@ const (
 
 // Available models:
 //
-//	"deepseek-chat"    — DeepSeek-V3, general-purpose (recommended)
+//	"deepseek-chat"     — DeepSeek-V3, general-purpose (recommended)
 //	"deepseek-reasoner" — DeepSeek-R1, chain-of-thought reasoning
 const deepSeekDefaultModel = "deepseek-chat"
 
@@ -30,6 +31,9 @@ type DeepSeekProvider struct {
 }
 
 func NewDeepSeekProvider(apiKey string, modelName string) *DeepSeekProvider {
+	if modelName == "" {
+		modelName = deepSeekDefaultModel
+	}
 	return &DeepSeekProvider{
 		apiKey:     apiKey,
 		modelName:  modelName,
@@ -37,20 +41,23 @@ func NewDeepSeekProvider(apiKey string, modelName string) *DeepSeekProvider {
 	}
 }
 
+// NewDeepSeekProviderWithModel is an alias kept for backward compatibility.
 func NewDeepSeekProviderWithModel(apiKey, model string) *DeepSeekProvider {
-	p := NewDeepSeekProvider(apiKey, model)
-	p.modelName = model
-	return p
+	return NewDeepSeekProvider(apiKey, model)
 }
 
 func (p *DeepSeekProvider) Complete(ctx context.Context, system string, history []types.ChatMessage, tools []Tool) (*LLMResponse, error) {
-	messages := toDeepSeekMessages(system, history)
+	messages, err := toDeepSeekMessages(system, history)
+	if err != nil {
+		return nil, fmt.Errorf("build messages: %w", err)
+	}
 
 	req := deepSeekRequest{
 		Model:       p.modelName,
 		Messages:    messages,
 		MaxTokens:   8192,
 		Temperature: 0.2,
+		Stream:      false,
 	}
 
 	if len(tools) > 0 {
@@ -59,10 +66,10 @@ func (p *DeepSeekProvider) Complete(ctx context.Context, system string, history 
 	}
 
 	payload, err := json.Marshal(req)
-	console.Error("deepseek.payload", string(payload))
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
+	console.Error("deepseek.payload", string(payload))
 
 	url := deepSeekBaseURL + "/chat/completions"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
@@ -102,17 +109,17 @@ func (p *DeepSeekProvider) Complete(ctx context.Context, system string, history 
 	choice := result.Choices[0]
 	response := &LLMResponse{}
 
-	// Reasoning content (deepseek-reasoner only) — prepend as context if present.
+	// Reasoning content (deepseek-reasoner only) — surface as <think> wrapper.
 	if choice.Message.ReasoningContent != "" {
 		response.Content = "<think>\n" + choice.Message.ReasoningContent + "\n</think>\n"
 	}
-	if choice.Message.Content != "" {
-		response.Content += choice.Message.Content
+	if choice.Message.Content != nil && *choice.Message.Content != "" {
+		response.Content += *choice.Message.Content
 	}
 
 	for _, tc := range choice.Message.ToolCalls {
 		var args map[string]any
-		json.Unmarshal([]byte(tc.Function.Arguments), &args) //nolint:errcheck
+		_ = json.Unmarshal([]byte(tc.Function.Arguments), &args)
 		input, _ := json.Marshal(args)
 		response.ToolCalls = append(response.ToolCalls, types.ContentBlock{
 			Type:  "tool_use",
@@ -125,7 +132,7 @@ func (p *DeepSeekProvider) Complete(ctx context.Context, system string, history 
 	return response, nil
 }
 
-// ── DeepSeek Internal Types ─────────────────────────────────────────────────
+// ── Internal Types ──────────────────────────────────────────────────────────
 
 type deepSeekRequest struct {
 	Model       string            `json:"model"`
@@ -137,11 +144,16 @@ type deepSeekRequest struct {
 	Stream      bool              `json:"stream"`
 }
 
+// deepSeekMessage represents a single turn in the conversation.
+//
+// Content is a *string (pointer) so that assistant tool-call messages can
+// serialize as `"content": null` rather than `"content": ""`.  DeepSeek
+// rejects a non-null empty string when tool_calls is also present.
 type deepSeekMessage struct {
 	Role             string             `json:"role"`
-	Content          string             `json:"content"`
+	Content          *string            `json:"content"` // null for assistant tool-call turns
 	ToolCalls        []deepSeekToolCall `json:"tool_calls,omitempty"`
-	ToolCallID       string             `json:"tool_call_id,omitempty"`
+	ToolCallID       string             `json:"tool_call_id,omitempty"` // role="tool" only
 	ReasoningContent string             `json:"reasoning_content,omitempty"`
 }
 
@@ -153,7 +165,7 @@ type deepSeekToolCall struct {
 
 type deepSeekToolCallFunction struct {
 	Name      string `json:"name"`
-	Arguments string `json:"arguments"` // raw JSON string (OpenAI convention)
+	Arguments string `json:"arguments"` // raw JSON string
 }
 
 type deepSeekTool struct {
@@ -211,141 +223,209 @@ func toDeepSeekTools(tools []Tool) []deepSeekTool {
 	return result
 }
 
-// toDeepSeekMessages converts the agent's ChatMessage history into the flat
-// message list that DeepSeek's OpenAI-compatible endpoint expects.
+// strPtr returns a pointer to s. Used to produce non-null JSON strings.
+func strPtr(s string) *string { return &s }
+
+// toDeepSeekMessages converts the agent history into the flat message list
+// that DeepSeek's OpenAI-compatible endpoint expects.
 //
-// Role mapping:
-//   - system prompt  → role "system"
-//   - user string    → role "user"
-//   - assistant text → role "assistant", content = text
-//   - tool_use block → role "assistant", tool_calls populated
-//   - tool_result    → role "tool",      tool_call_id + content
-func toDeepSeekMessages(system string, history []types.ChatMessage) []deepSeekMessage {
+// The critical invariant DeepSeek enforces:
+//
+//  1. An assistant message that contains tool_calls must have content = null.
+//  2. Each tool result must be a separate message with role "tool" and a
+//     tool_call_id that exactly matches the id of the tool_use block that
+//     preceded it in the assistant message.
+//  3. tool_use and tool_result blocks live in different ChatMessages in the
+//     agent history:
+//     - assistant message → []ContentBlock of type "tool_use" (+ optional "text")
+//     - user message      → []ContentBlock of type "tool_result"
+//
+// This function never mixes tool_use and tool_result in the same pass.
+func toDeepSeekMessages(system string, history []types.ChatMessage) ([]deepSeekMessage, error) {
 	msgs := make([]deepSeekMessage, 0, len(history)+1)
 
 	if system != "" {
-		msgs = append(msgs, deepSeekMessage{Role: "system", Content: system})
+		msgs = append(msgs, deepSeekMessage{Role: "system", Content: strPtr(system)})
 	}
 
-	for _, msg := range history {
-		role := msg.Role
-
-		switch v := msg.Content.(type) {
-		case string:
-			msgs = append(msgs, deepSeekMessage{Role: role, Content: v})
-
-		case []types.ContentBlock:
-			msgs = append(msgs, blocksToDeepSeekMessages(role, v)...)
-
-		case []any:
-			data, _ := json.Marshal(v)
-			var blocks []types.ContentBlock
-			if err := json.Unmarshal(data, &blocks); err == nil {
-				msgs = append(msgs, blocksToDeepSeekMessages(role, blocks)...)
-			}
+	for i, msg := range history {
+		converted, err := chatMessageToDeepSeek(msg)
+		if err != nil {
+			return nil, fmt.Errorf("message[%d]: %w", i, err)
 		}
+		msgs = append(msgs, converted...)
 	}
 
-	return msgs
+	return msgs, nil
 }
 
-func blocksToDeepSeekMessages(role string, blocks []types.ContentBlock) []deepSeekMessage {
+// chatMessageToDeepSeek converts a single ChatMessage to one or more
+// deepSeekMessages. A single ChatMessage can expand to multiple API messages
+// when it contains a mix of tool_use calls (one assistant message) plus
+// tool_result responses (one "tool" message per result).
+func chatMessageToDeepSeek(msg types.ChatMessage) ([]deepSeekMessage, error) {
+	switch v := msg.Content.(type) {
+
+	case string:
+		return []deepSeekMessage{{Role: msg.Role, Content: strPtr(v)}}, nil
+
+	case []types.ContentBlock:
+		return blocksToDeepSeekMessages(msg.Role, v)
+
+	case []any:
+		// History round-tripped through JSON loses concrete types; re-hydrate.
+		data, err := json.Marshal(v)
+		if err != nil {
+			return nil, fmt.Errorf("re-marshal []any: %w", err)
+		}
+		var blocks []types.ContentBlock
+		if err := json.Unmarshal(data, &blocks); err != nil {
+			return nil, fmt.Errorf("unmarshal []ContentBlock: %w", err)
+		}
+		return blocksToDeepSeekMessages(msg.Role, blocks)
+
+	default:
+		return nil, fmt.Errorf("unsupported content type %T", msg.Content)
+	}
+}
+
+// blocksToDeepSeekMessages maps a slice of ContentBlocks to DeepSeek messages.
+//
+// Block layout rules by role:
+//
+//	role="assistant"
+//	  "text"     → assistant message with content string
+//	  "tool_use" → assistant message with tool_calls array, content = null
+//	               (text and tool_calls are merged into ONE assistant message)
+//
+//	role="user"
+//	  "tool_result" → one "tool" message per result, tool_call_id = block.ID
+//	  "text"        → user message with content string
+func blocksToDeepSeekMessages(role string, blocks []types.ContentBlock) ([]deepSeekMessage, error) {
 	var msgs []deepSeekMessage
 
-	var toolCalls []deepSeekToolCall
-	var textContent string
+	// ── Assistant turn ──────────────────────────────────────────────────────
+	if role == "assistant" {
+		var toolCalls []deepSeekToolCall
+		var textParts []string
 
+		for _, block := range blocks {
+			switch block.Type {
+			case "tool_use":
+				args := string(block.Input)
+				if args == "" || args == "null" {
+					args = "{}"
+				}
+				toolCalls = append(toolCalls, deepSeekToolCall{
+					ID:   block.ID,
+					Type: "function",
+					Function: deepSeekToolCallFunction{
+						Name:      block.Name,
+						Arguments: args,
+					},
+				})
+
+			case "text":
+				if block.Content != "" {
+					textParts = append(textParts, block.Content)
+				}
+
+			// tool_result should never appear in an assistant message; skip
+			// gracefully rather than producing a malformed API call.
+			case "tool_result":
+				return nil, fmt.Errorf("tool_result block found in assistant message (block.ID=%q); check agentic loop history construction", block.ID)
+			}
+		}
+
+		// Build a single assistant message.
+		// DeepSeek rules:
+		//   • If tool_calls present → content MUST be null (not "")
+		//   • If no tool_calls     → content is the text (may be "")
+		m := deepSeekMessage{Role: "assistant"}
+		if len(toolCalls) > 0 {
+			m.ToolCalls = toolCalls
+			m.Content = nil // explicit null
+		} else {
+			text := strings.Join(textParts, "\n")
+			m.Content = strPtr(text)
+		}
+		msgs = append(msgs, m)
+		return msgs, nil
+	}
+
+	// ── User turn ───────────────────────────────────────────────────────────
+	// tool_result blocks become role="tool" messages.
+	// Plain text blocks become role="user" messages.
 	for _, block := range blocks {
 		switch block.Type {
-		case "tool_use":
-			// DeepSeek expects arguments as a raw JSON string, not a parsed object.
-			args := string(block.Input)
-			if args == "" {
-				args = "{}"
-			}
-			toolCalls = append(toolCalls, deepSeekToolCall{
-				ID:   block.ID,
-				Type: "function",
-				Function: deepSeekToolCallFunction{
-					Name:      block.Name,
-					Arguments: args,
-				},
-			})
-
 		case "tool_result":
-			// Must follow the paired assistant tool_call message.
-			// Flush any buffered tool calls first.
-			if len(toolCalls) > 0 {
-				msgs = append(msgs, deepSeekMessage{
-					Role:      "assistant",
-					ToolCalls: toolCalls,
-				})
-				toolCalls = nil
+			// block.ID here is the tool_call_id — it must match the id that was
+			// assigned to the tool_use block in the preceding assistant message.
+			content := extractToolResultContent(block.Content)
+			toolCallID := block.ID
+			if toolCallID == "" {
+				toolCallID = block.ToolUseID
 			}
-			resultText := fmt.Sprintf("%v", block.Content)
 			msgs = append(msgs, deepSeekMessage{
 				Role:       "tool",
-				ToolCallID: block.ID,
-				Content:    resultText,
+				ToolCallID: toolCallID,
+				Content:    strPtr(content),
 			})
 
 		case "text":
-			textContent += block.Content
+			if block.Content != "" {
+				msgs = append(msgs, deepSeekMessage{
+					Role:    "user",
+					Content: strPtr(block.Content),
+				})
+			}
 		}
 	}
 
-	// Flush tool calls (no tool_result followed them in this batch).
-	if len(toolCalls) > 0 {
-		msgs = append(msgs, deepSeekMessage{
-			Role:      "assistant",
-			ToolCalls: toolCalls,
-		})
-	}
-
-	// Flush plain text.
-	if textContent != "" {
-		msgs = append(msgs, deepSeekMessage{Role: role, Content: textContent})
-	}
-
-	return msgs
+	return msgs, nil
 }
 
-// stripThinkTags removes <think>…</think> blocks that deepseek-reasoner
+// extractToolResultContent safely converts the tool_result Content field
+// (which is typed as any in ContentBlock) to a plain string.
+func extractToolResultContent(raw any) string {
+	if raw == nil {
+		return ""
+	}
+	switch v := raw.(type) {
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	default:
+		// Structured content (e.g. []ContentBlock) — marshal to JSON string.
+		b, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Sprintf("%v", raw)
+		}
+		return string(b)
+	}
+}
+
+// ── Utility ─────────────────────────────────────────────────────────────────
+
+// StripThinkTags removes <think>…</think> blocks that deepseek-reasoner
 // prepends to its output, returning only the final answer text.
-// Useful if you don't want to surface chain-of-thought to users.
-func stripThinkTags(s string) string {
+func StripThinkTags(s string) string {
 	const open, close = "<think>\n", "\n</think>\n"
 	for {
-		start := indexStr(s, open)
+		start := strings.Index(s, open)
 		if start == -1 {
 			break
 		}
-		end := indexStr(s[start:], close)
+		end := strings.Index(s[start+len(open):], close)
 		if end == -1 {
 			break
 		}
-		s = s[:start] + s[start+end+len(close):]
+		s = s[:start] + s[start+len(open)+end+len(close):]
 	}
 	return s
 }
 
-func indexStr(s, sub string) int {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return i
-		}
-	}
-	return -1
-}
-
-// Ensure DeepSeekProvider satisfies the same provider interface at compile time.
-// Uncomment once your Provider interface is defined in this package:
+// Ensure DeepSeekProvider satisfies the Provider interface at compile time.
+// Uncomment once Provider is defined in this package:
 // var _ Provider = (*DeepSeekProvider)(nil)
-
-// Example usage:
-//
-//	provider := agent.NewDeepSeekProvider(os.Getenv("DEEPSEEK_API_KEY"))
-//	// or for the reasoner model:
-//	provider := agent.NewDeepSeekProviderWithModel(os.Getenv("DEEPSEEK_API_KEY"), "deepseek-reasoner")
-//
-//	resp, err := provider.Complete(ctx, systemPrompt, history, tools)
