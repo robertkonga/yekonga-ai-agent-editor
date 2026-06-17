@@ -7,7 +7,7 @@
             <span v-if="showTitle" class="truncate font-normal text-[#cccccc]/85">
                 {{ title }}
             </span>
-            <template v-if="store.viewMode != 'WORKSPACE' && store.active">
+            <template v-if="store.active && store.active.viewMode != 'WORKSPACE'">
                 <button type="button" title="Minimize" aria-label="Minimize window"
                     class="px-4 flex font-semibold h-full w-auto cursor-pointer items-center justify-center border-none bg-transparent p-0 text-blue-500 outline-none transition-colors duration-120 hover:bg-white/10 focus-visible:outline  focus-visible:outline-white/40 focus-visible:-outline-offset-2"
                     @click="store.setViewMode('WORKSPACE')">
@@ -19,14 +19,14 @@
         <!-- Window controls — [app-region:no-drag] so buttons stay clickable in Electron -->
         <div class="flex h-full items-stretch [app-region:no-drag]" role="toolbar" aria-label="Window controls">
             <template v-if="store.active">
-                <template v-if="store.viewMode == 'AGENT'">
+                <template v-if="store.active && store.active.viewMode == 'AGENT'">
                     <button type="button" title="Minimize" aria-label="Minimize window"
                         class="px-4 flex font-semibold h-full w-auto cursor-pointer items-center justify-center border-none bg-transparent p-0 text-[#cccccc] outline-none transition-colors duration-120 hover:bg-white/10 focus-visible:outline  focus-visible:outline-white/40 focus-visible:-outline-offset-2"
                         @click="store.setViewMode('EDITOR')">
                         Editor
                     </button>
                 </template>
-                <template v-else-if="store.viewMode == 'EDITOR'">
+                <template v-else-if="store.active && store.active.viewMode == 'EDITOR'">
                     <button type="button" title="Minimize" aria-label="Minimize window"
                         class="px-4 flex font-semibold h-full w-auto cursor-pointer items-center justify-center border-none bg-indigo-900 p-0 text-[#cccccc] outline-none transition-colors duration-120 hover:bg-white/10 focus-visible:outline  focus-visible:outline-white/40 focus-visible:-outline-offset-2"
                         @click="store.setViewMode('AGENT')">

@@ -3,14 +3,14 @@
         <Toolbar></Toolbar>
         <!-- IDE Panel (Right pane) -->
         <div class="flex-1 h-full flex flex-row overflow-hidden relative">
-            <template v-if="store.viewMode == 'WORKSPACE'">
+            <template v-if="store.active && store.active.viewMode == 'WORKSPACE'">
                 <Workspace></Workspace>
             </template>
             <template v-else-if="store.active">
-                <template v-if="store.viewMode == 'AGENT'">
+                <template v-if="store.active.viewMode == 'AGENT'">
                     <Agent></Agent>
                 </template>
-                <template v-if="store.viewMode == 'EDITOR'">
+                <template v-if="store.active.viewMode == 'EDITOR'">
                     <Editor></Editor>
                 </template>
             </template>
