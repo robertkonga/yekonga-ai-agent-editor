@@ -1,7 +1,6 @@
 
 <template>
     <div class="flex h-full min-h-0 w-full flex-col bg-slate-900 font-sans text-[#cccccc]">
-
         <!-- Header -->
         <div class="flex items-center border-b border-slate-800/60 px-5 py-4">
             <div class="flex items-center justify-between flex-1">
@@ -33,7 +32,6 @@
 
         <div class="flex-1 overflow-y-auto">
             <div class="w-1/2 mx-auto ">
-    
                 <!-- Search -->
                 <div class="px-4 py-3">
                     <div

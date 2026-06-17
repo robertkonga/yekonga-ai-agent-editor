@@ -303,14 +303,16 @@ const currentModels = computed<ModelGroup[]>(() =>
 )
 
 function onProviderChange(value: string) {
-    defaultProvider.value = value
+    defaultProvider.value = value;
+
     const p = providerOptions.find(p => p.value === value)
     if (p) defaultModel.value = p.defaultModel
+
     modelDropdownOpen.value = false
 }
 
 function onModelChange(value: string) {
-    defaultModel.value = value
+    defaultModel.value = value;
     modelDropdownOpen.value = false
 }
 
@@ -387,12 +389,12 @@ async function loadSettings() {
         try { return await LoadConfigFromFile(k) } catch(e) { console.log(e); return fallback }
     }
 
-    keys.value.anthropic = await load('APIKey_anthropic')
-    keys.value.gemini    = await load('APIKey_gemini')
-    keys.value.deepseek  = await load('APIKey_deepseek')
-    ollamaHost.value     = await load('OllamaHost', 'http://localhost:11434')
-    defaultProvider.value = await load('DefaultProvider', 'ollama')
-    defaultModel.value = await load('DefaultModel', 'qwen3:8b')    
+    keys.value.anthropic    = await load('APIKey_anthropic')
+    keys.value.gemini       = await load('APIKey_gemini')
+    keys.value.deepseek     = await load('APIKey_deepseek')
+    ollamaHost.value        = await load('OllamaHost', 'http://localhost:11434')
+    defaultProvider.value   = await load('DefaultProvider', 'ollama')
+    defaultModel.value      = await load('DefaultModel', 'qwen3:8b')    
 }
 
 function resetSettings() {

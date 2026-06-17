@@ -5,6 +5,7 @@ import App from '@/App.vue'
 import { useWorkspace } from '@/store/workspace.ts';
 import Modal from '@/components/Modal.vue';
 import ExpandableContent from '@/components/Expandable.vue';
+// import CustomDropdown from '@/components/CustomDropdown.vue';
 
 import '@/window.ts';
 import '@imengyu/vue3-context-menu/lib/vue3-context-menu.css';
@@ -16,6 +17,7 @@ app.use(createPinia());
 
 app.component('modal', Modal);
 app.component('expandable', ExpandableContent);
+// app.component('custom-dropdown', CustomDropdown);
 
 useWorkspace();
 

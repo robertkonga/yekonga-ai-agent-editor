@@ -5,7 +5,7 @@
                 <button @click="createNewSession" class="text-xs bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-gray-400">
                     New <span class="text-[10px] ml-1 opacity-70">Ctrl+N</span>
                 </button>
-                <button @click="store.fetchSessions()" class="bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-gray-400 hover:text-white">
+                <button @click="store.fetchSessions()" class="text-xs bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-gray-400 hover:text-white">
                     <i class="ye ye-rotate ye-xs"></i>
                 </button>
             </div>

@@ -9,4 +9,5 @@ import Layout from '@/layout/Main.vue';
 import { useWorkspace } from './store/workspace.ts';
 
 const store = useWorkspace();
+store.loadIcons();
 </script>
