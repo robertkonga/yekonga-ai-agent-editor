@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, nextTick, reactive, ref } from 'vue';
 import * as monaco from 'monaco-editor';
-import { ReadDirectory, ReadFile, ListSessions, SaveFile, CreateDirectory, MoveFile } from '@wails/go/main/App';
+import { ReadDirectory, ReadFile, ListSessions, SaveFile, CreateDirectory, MoveFile, ListIcons } from '@wails/go/main/App';
 import YekongaDatabase from '@/scripts/database';
 
 const WORKSHOP_TABLE = "workshops"
@@ -26,6 +26,7 @@ export interface Workspace {
     id: string,
     name: string,
     path: string;
+    viewMode: VIEW_MODE;
     customizedView: CUSTOMIZATION_VIEW;
     workspaceFiles: FileNode[];
     changedFiles: FileNode[];
@@ -47,10 +48,10 @@ export const useWorkspaceStore = (name: string) => {
             ]
         })
 
-        const viewMode = ref<VIEW_MODE>("EDITOR")
         const workspaces = reactive<Record<string, Workspace>>({})
         const activePath = ref<string | null>(null);
         const active = ref<Workspace | null>(null);
+        const icons: any[] = [];
 
         const saveLocally = async () => {
             // await db.table(WORKSHOP_TABLE).create(window.copy(active.value));
@@ -70,8 +71,10 @@ export const useWorkspaceStore = (name: string) => {
             window.savaLocalData(data)
         }
 
-        const setViewMode = (value: VIEW_MODE) => {
-            viewMode.value = value;
+        const setViewMode = async (value: VIEW_MODE) => {
+            active.value!.viewMode = value;
+
+            await saveLocally();
         }
 
         const loadWorkshops = async () => {
@@ -84,8 +87,6 @@ export const useWorkspaceStore = (name: string) => {
                 if (!workspaces[key].changedFiles) workspaces[key].changedFiles = [];
                 if (!workspaces[key].sessions) workspaces[key].sessions = [];
             }
-
-            // sortWorkshops();
         }
 
         const sortWorkshops = () => {
@@ -107,8 +108,6 @@ export const useWorkspaceStore = (name: string) => {
         }
 
         const openWorkshop = async (path: string | null) => {
-            viewMode.value = 'EDITOR';
-            
             if(path) {
                 let id = await generateID(path);
                 let name = path.split("/").pop() || "";
@@ -127,17 +126,23 @@ export const useWorkspaceStore = (name: string) => {
                         viewStates: {},
                         lastOpened: new Date(),
                         customizedView: "AGENT",
+                        viewMode: "EDITOR",
                     }
                 } else {
-                    // workspaces[path].id = id;
-                    // workspaces[path].name = name;
                     workspaces[path].lastOpened = new Date();
+
+                    if (!workspaces[path].id) workspaces[path].id = id;
+                    if (!workspaces[path].name) workspaces[path].name = name;
                     if (!workspaces[path].changedFiles) workspaces[path].changedFiles = [];
                     if (!workspaces[path].sessions) workspaces[path].sessions = [];
                 }
 
                 activePath.value = path;
                 active.value = workspaces[path];
+
+                if(active.value && !["EDITOR","AGENT"].includes(active.value!.viewMode)) {
+                    active.value!.viewMode = "AGENT";
+                }
             } else {
                 activePath.value = null;
                 active.value = null;
@@ -378,12 +383,18 @@ export const useWorkspaceStore = (name: string) => {
             }
             
         }
+
+        const loadIcons = async () => {
+            let list = await ListIcons()
+            console.log(list)
+        }
     
         return {
-            viewMode,
+            icons,
             active,
             activePath,
             workspaces,
+            loadIcons,
             openFile,
             setViewMode,
             setActiveFile,
