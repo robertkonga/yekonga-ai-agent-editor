@@ -8,8 +8,13 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
             </svg> -->
             
-            <span class="text-blue-400/80  w-7 flex justify-center">
-                <i class="ye text-[0.85rem]" :class="[node.expanded? 'ye-folder-open':'ye-folder-closed']"></i>
+            <span class="w-5 flex justify-center">
+                <FileIcon
+                    :lang="node.name"
+                    type="directory"
+                    :extended="node.expanded"
+                    :size="16"
+                />
             </span>
             <span class="h-full flex-1 w-10/12"><FileName v-model="node" :isEditor="props.isEditor"></FileName></span>
         </div>
@@ -29,12 +34,12 @@
         'px-2 h-5 text-xs cursor-pointer transition relative group',
     ]">
         <div class="flex h-full items-center space-x-2 z-20 relative">
-            <FileIcon 
-                :lang="`${node.extension}`.substring(1)" 
-                :type="node.type" 
+            <FileIcon
+                :lang="node.extension || node.name"
+                :type="node.type"
                 :extended="node.expanded"
-                :class="['rounded-full', getFileColorClass(node.lang as string)]">
-            </FileIcon>
+                :size="16"
+            ></FileIcon>
             <span class="h-full flex-1 w-10/12"><FileName v-model="node" :isEditor="props.isEditor"></FileName></span>
         </div>
         <background :level="props.level" :isEditor="props.isEditor"></background>
@@ -44,7 +49,6 @@
 import { h, defineComponent, inject, type Ref, ref, watch } from 'vue';
 import FileIcon from './FileIcon.vue';
 import { useWorkspace, type FileNode } from '@/store/workspace.ts';
-import { getFileColorClass } from '../Editor/IDE/utils.ts';
 import FileName from './FileName.vue';
 
 const emit = defineEmits(["update:modelValue", "change"])

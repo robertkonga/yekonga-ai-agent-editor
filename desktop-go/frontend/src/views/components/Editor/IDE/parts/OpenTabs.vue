@@ -6,12 +6,12 @@
                 (store.active?.activeFile?.path == item.path)? 'bg-slate-950 border-t-blue-800':'bg-slate-900 border-t-transparent'
             ]">
             <div  @click="store.setActiveFile(item)" class="flex h-full items-center space-x-1 pl-2">
-                <FileIcon 
-                    :lang="`${item.extension}`" 
-                    :type="item.type" 
+                <FileIcon
+                    :lang="item.extension || item.name"
+                    :type="item.type"
                     :extended="item.expanded"
-                    :class="[getFileColorClass(item.lang || 'planetext')]">
-                </FileIcon>
+                    :size="14"
+                />
                 <span class="whitespace-nowrap">{{ item.name }}</span>
             </div>
             <div @click="store.closeTab(item.id, null)" class="group size-5 flex items-center justify-center">
@@ -27,8 +27,7 @@
 
 
 <script setup lang="ts">
-import { useWorkspace, type FileNode } from '@/store/workspace';
-import { getFileColorClass } from '../utils.ts';
+import { useWorkspace } from '@/store/workspace';
 import FileIcon from '@/views/components/General/FileIcon.vue';
 
 const store = useWorkspace()
