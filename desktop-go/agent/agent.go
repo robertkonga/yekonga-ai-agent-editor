@@ -176,10 +176,11 @@ func (a *Agent) AgentChat(sessionID string, userMessage string, providerName str
 			}
 
 			toolResults = append(toolResults, types.ContentBlock{
-				Type:      "tool_result",
-				Name:      call.Name,
-				ToolUseID: call.ID,
-				Content:   result,
+				Type: "tool_result",
+				Name: call.Name,
+				ID:   call.ID,
+				// ToolUseID: call.ID,
+				Content: result,
 			})
 		}
 
