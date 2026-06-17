@@ -1,5 +1,5 @@
 <template>
-    <div class="flex-1 flex flex-col items-center justify-center pb-3">
+    <div class="h-full flex-1 flex flex-col items-center justify-center pb-3">
         <div class="w-full h-full flex flex-col items-center justify-center bg-gray-400/5 border border-gray-400/20 rounded-xl overflow-hidden">
             <template v-if="store.active!.customizedView == 'DATA_SCHEMA'">
                 <DataSchema></DataSchema>

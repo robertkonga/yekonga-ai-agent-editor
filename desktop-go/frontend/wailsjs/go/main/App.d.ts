@@ -3,7 +3,7 @@
 import {agent} from '../models';
 import {types} from '../models';
 
-export function AgentChat(arg1:string,arg2:string,arg3:string):Promise<void>;
+export function AgentChat(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function CopyFile(arg1:string,arg2:string):Promise<void>;
 
@@ -19,9 +19,11 @@ export function HomeDirectory(arg1:string):Promise<string>;
 
 export function ListSessions():Promise<Array<agent.Session>>;
 
-export function LoadAPIKey():Promise<string>;
+export function LoadAPIKey(arg1:string):Promise<string>;
 
 export function LoadConfigFromFile(arg1:string):Promise<string>;
+
+export function LoadOllamaHost():Promise<string>;
 
 export function MoveFile(arg1:string,arg2:string):Promise<void>;
 
@@ -33,8 +35,10 @@ export function ReadFile(arg1:string):Promise<Record<string, any>>;
 
 export function RenameFile(arg1:string,arg2:string):Promise<void>;
 
-export function SaveAPIKey(arg1:string):Promise<void>;
+export function SaveAPIKey(arg1:string,arg2:string):Promise<void>;
 
 export function SaveConfigToFile(arg1:string,arg2:string):Promise<void>;
 
 export function SaveFile(arg1:any,arg2:string):Promise<void>;
+
+export function SaveOllamaHost(arg1:string):Promise<void>;

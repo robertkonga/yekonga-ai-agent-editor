@@ -1,23 +1,9 @@
 export namespace agent {
 	
-	export class ChatMessage {
-	    role: string;
-	    content: any;
-	
-	    static createFrom(source: any = {}) {
-	        return new ChatMessage(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.role = source["role"];
-	        this.content = source["content"];
-	    }
-	}
 	export class Session {
 	    id: string;
 	    provider: string;
-	    history: ChatMessage[];
+	    history: types.ChatMessage[];
 	    // Go type: time
 	    last_updated: any;
 	
@@ -29,7 +15,7 @@ export namespace agent {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.provider = source["provider"];
-	        this.history = this.convertValues(source["history"], ChatMessage);
+	        this.history = this.convertValues(source["history"], types.ChatMessage);
 	        this.last_updated = this.convertValues(source["last_updated"], null);
 	    }
 	
@@ -56,6 +42,20 @@ export namespace agent {
 
 export namespace types {
 	
+	export class ChatMessage {
+	    role: string;
+	    content: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChatMessage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.role = source["role"];
+	        this.content = source["content"];
+	    }
+	}
 	export class FileNode {
 	    id: string;
 	    name: string;

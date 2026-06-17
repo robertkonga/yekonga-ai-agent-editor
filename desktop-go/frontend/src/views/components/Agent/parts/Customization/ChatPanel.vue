@@ -5,27 +5,29 @@
         <template v-if="!newSession">
             <!-- Header -->
             <div class="flex h-9 items-center space-x-2 border-b border-slate-800/60 px-4 bg-slate-900/60">
-                <div class="flex h-4 w-4 items-center justify-center  text-indigo-400 ">
+                <div class="flex h-4 w-4 items-center justify-center text-indigo-400">
                     <i class="ye ye-user-tie"></i>
                 </div>
                 <span class="text-xs font-bold tracking-wider text-slate-200 uppercase">Agent Assistant</span>
             </div>
-    
+
             <!-- Chat history -->
             <div class="flex-1 overflow-y-auto p-3 space-y-4" ref="chatHistoryContainer">
                 <div v-for="(msg, idx) in messages" :key="idx" :class="[
                     'flex flex-col max-w-[90%] rounded-xl p-3 text-xs leading-relaxed border',
                     msg.role === 'user'
                         ? 'ml-auto bg-slate-800 border-slate-700 text-slate-100'
-                        : 'mr-auto bg-slate-900/80 border-slate-800/60 text-slate-300',
+                        : msg.role === 'tool'
+                            ? 'mr-auto bg-slate-950/60 border-slate-800/40 text-slate-500 font-mono'
+                            : 'mr-auto bg-slate-900/80 border-slate-800/60 text-slate-300',
                 ]">
                     <span class="font-bold text-[9px] uppercase tracking-wider mb-1 block"
-                        :class="msg.role === 'user' ? 'text-indigo-300' : 'text-emerald-400'">
-                        {{ msg.role === 'user' ? 'You' : 'Agent' }}
+                        :class="msg.role === 'user' ? 'text-indigo-300' : msg.role === 'tool' ? 'text-amber-500/70' : 'text-emerald-400'">
+                        {{ msg.role === 'user' ? 'You' : msg.role === 'tool' ? 'Tool' : 'Agent' }}
                     </span>
                     <p class="whitespace-pre-wrap text-[11px]">{{ msg.content }}</p>
                 </div>
-    
+
                 <!-- Scaffold progress card -->
                 <div v-if="scaffoldProgress.active"
                     class="mr-auto w-full max-w-[90%] rounded-xl border border-slate-800/60 bg-slate-900/80 p-3 space-y-2">
@@ -35,19 +37,13 @@
                             {{ scaffoldProgress.index }} / {{ scaffoldProgress.total }}
                         </span>
                     </div>
-    
-                    <!-- Progress bar -->
                     <div class="h-1 w-full rounded-full bg-slate-800 overflow-hidden">
                         <div class="h-full rounded-full bg-indigo-500 transition-all duration-300"
                             :style="{ width: progressPercent + '%' }" />
                     </div>
-    
-                    <!-- Current file -->
                     <p class="truncate text-[10px] text-slate-400 font-mono">
                         {{ scaffoldProgress.file || '…' }}
                     </p>
-    
-                    <!-- Written files list -->
                     <div v-if="scaffoldProgress.files.length"
                         class="max-h-28 overflow-y-auto space-y-0.5 pt-1 border-t border-slate-800/60">
                         <div v-for="(f, i) in scaffoldProgress.files" :key="i"
@@ -60,7 +56,7 @@
                         </div>
                     </div>
                 </div>
-    
+
                 <!-- Thinking indicator -->
                 <div v-if="isAiThinking"
                     class="flex items-center space-x-1.5 mr-auto bg-slate-900/80 border border-slate-800/60 rounded-xl p-3 text-xs text-slate-500">
@@ -78,75 +74,135 @@
                     <template v-if="newSession">
                         <div class="flex items-center text-lg text-gray-300 gap-2">
                             <span>New session in</span>
-                            <button class="flex items-center gap-1 hover:text-white">
+                            <button type="button" class="flex items-center gap-1 hover:text-white">
                                 <span><i class="ye ye-folder-open text-blue-500 ye-sm px-2"></i> {{ store.active?.name }}</span>
                                 <span class="text-xs">⌄</span>
                             </button>
-                            <template v-if="false">
-                                <span>with</span>
-                                <button class="flex items-center gap-1 hover:text-white">
-                                    <span><i class="ye ye-code ye-sm"></i> Copilot CLI</span>
-                                    <span class="text-xs">⌄</span>
-                                </button>
-                            </template>
                         </div>
                     </template>
-        
-                    <div class="border border-gray-400/20 rounded-xl bg-slate-900 shadow-lg overflow-hidden flex flex-col">
-                        <div v-if="false" class="bg-black/20 border-b border-slate-800/60 p-4 flex flex-col items-start justify-between">
-                            <div class="flex w-full items-start justify-between gap-3">
-                                <div class="flex items-center space-x-3">
-                                    <span class="text-blue-400">ⓘ</span>
-                                    <h3 class="text-sm font-semibold text-white">Credit Limit Reached</h3>
-                                </div>
-                                <button class="text-gray-500 hover:text-gray-300">✕</button>
-                            </div>
-                            <div class="flex  w-full items-start justify-between">
-                                <p class="text-sm text-gray-400 mt-1">Upgrade to keep going.</p>
-                                <!-- <button class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-1 rounded-md">
-                                    Upgrade
-                                </button> -->
-                            </div>
-                        </div>
-        
+
+                    <div class="border border-gray-400/20 rounded-xl bg-slate-900 shadow-lg overflow-visible flex flex-col">
                         <div class="p-3">
                             <textarea v-model="userInput" placeholder="What's your next milestone?"
-                                class="w-full bg-transparent text-gray-200 placeholder-gray-600 resize-none outline-none min-h-[60px]"></textarea>
+                                class="w-full bg-transparent text-gray-200 placeholder-gray-600 resize-none outline-none min-h-[60px]"
+                                @keydown.enter.exact.prevent="sendMessage"
+                            ></textarea>
                         </div>
-        
-                        <div class="px-4 py-2 flex items-center justify-between border-t border-slate-800/60">
-                            <div class="flex items-center gap-4 text-xs text-gray-500">
-                                <button class="hover:text-gray-300"><i class="ye ye-plus"></i></button>
-                                <button class="hover:text-gray-300 flex items-center gap-1">
-                                    <span>⧉</span> Agent
-                                </button>
-                                <!-- <span class="text-gray-600">|</span> -->
-                                <!-- <button class="hover:text-gray-300">Claude Haiku 4.5</button> -->
+
+                        <div class="px-3 py-2 flex items-center justify-between border-t border-slate-800/60 gap-2">
+                            <!-- Left: provider + model selectors -->
+                            <div class="flex items-center gap-2 min-w-0">
+                                <!-- Provider pill selector -->
+                                <div class="flex items-center rounded-md border border-slate-700/60 bg-slate-800/60 p-0.5 gap-0.5 shrink-0">
+                                    <button
+                                        v-for="p in providerOptions"
+                                        :key="p.value"
+                                        type="button"
+                                        :title="p.label"
+                                        :class="[
+                                            'flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-all duration-150',
+                                            selectedProvider === p.value
+                                                ? 'bg-slate-700 text-slate-100 shadow-sm'
+                                                : 'text-slate-500 hover:text-slate-300'
+                                        ]"
+                                        @click="onProviderChange(p.value)"
+                                    >
+                                        <span>{{ p.icon }}</span>
+                                        <span>{{ p.label }}</span>
+                                    </button>
+                                </div>
+
+                                <!-- Model dropdown -->
+                                <div class="relative min-w-0" ref="modelDropdownRef">
+                                    <button
+                                        type="button"
+                                        class="flex items-center gap-1.5 px-2 py-1 rounded-md border border-slate-700/60 bg-slate-800/60 text-[10px] text-slate-300 hover:text-slate-100 hover:border-slate-600 transition-all duration-150 max-w-[140px]"
+                                        @click="modelDropdownOpen = !modelDropdownOpen"
+                                    >
+                                        <span class="truncate font-mono">{{ selectedModel }}</span>
+                                        <svg class="shrink-0 text-slate-500 transition-transform duration-150"
+                                            :class="{ 'rotate-180': modelDropdownOpen }"
+                                            width="8" height="8" viewBox="0 0 10 10" fill="none">
+                                            <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </button>
+
+                                    <!-- Model menu -->
+                                    <Transition
+                                        enter-active-class="transition duration-100 ease-out"
+                                        enter-from-class="opacity-0 -translate-y-1"
+                                        leave-active-class="transition duration-75 ease-in"
+                                        leave-to-class="opacity-0 -translate-y-1"
+                                    >
+                                        <div v-if="modelDropdownOpen"
+                                            class="absolute bottom-full left-0 mb-1.5 z-50 min-w-[180px] rounded-lg border border-slate-700/80 bg-slate-900 shadow-xl shadow-black/40 overflow-hidden"
+                                        >
+                                            <div class="px-2 pt-2 pb-1 border-b border-slate-800/60">
+                                                <p class="text-[9px] font-semibold uppercase tracking-wider text-slate-500">
+                                                    {{ currentProvider?.label }} Models
+                                                </p>
+                                            </div>
+                                            <div class="py-1 max-h-48 overflow-y-auto">
+                                                <template v-for="group in groupedModels" :key="group.group">
+                                                    <div v-if="group.group" class="px-2 pt-2 pb-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-600">
+                                                        {{ group.group }}
+                                                    </div>
+                                                    <button
+                                                        v-for="m in group.models"
+                                                        :key="m.value"
+                                                        type="button"
+                                                        :disabled="m.disabled"
+                                                        :class="[
+                                                            'w-full flex items-center justify-between gap-2 px-3 py-1.5 text-left transition-colors duration-100',
+                                                            selectedModel === m.value
+                                                                ? 'bg-indigo-500/20 text-indigo-300'
+                                                                : m.disabled
+                                                                    ? 'text-slate-600 cursor-not-allowed'
+                                                                    : 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
+                                                        ]"
+                                                        @click="onModelChange(m.value)"
+                                                    >
+                                                        <span class="flex flex-col min-w-0">
+                                                            <span class="text-[11px] font-mono truncate">{{ m.label }}</span>
+                                                            <span v-if="m.description" class="text-[9px] text-slate-500 truncate">{{ m.description }}</span>
+                                                        </span>
+                                                        <svg v-if="selectedModel === m.value"
+                                                            class="shrink-0 text-indigo-400" width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                                            <path d="M1.5 5L4 7.5L8.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        </svg>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </Transition>
+                                </div>
+
                             </div>
-                            <button class="text-gray-500 hover:text-gray-300"><i class="ye ye-paper-plane"></i></button>
+
+                            <!-- Right: send -->
+                            <button
+                                type="submit"
+                                :disabled="isAiThinking || !userInput.trim()"
+                                class="shrink-0 flex items-center justify-center w-6 h-6 rounded-md transition-all duration-150"
+                                :class="isAiThinking || !userInput.trim()
+                                    ? 'text-slate-700 cursor-not-allowed'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'"
+                            >
+                                <i class="ye ye-paper-plane text-xs"></i>
+                            </button>
                         </div>
                     </div>
-        
+
                     <div class="flex items-center justify-between text-xs text-gray-500 px-1">
                         <div class="flex items-center gap-1">
                             <i class="ye ye-key ye-sm"></i> Default Approvals
                         </div>
                         <div class="flex items-center gap-4">
-                            <button class="flex items-center gap-1 hover:text-gray-300"><i class="ye ye-folder-open ye-sm"></i> Folder</button>
-                            <button class="flex items-center gap-1 hover:text-gray-300"><i class="ye ye-leaf ye-sm"></i> main</button>
+                            <button type="button" class="flex items-center gap-1 hover:text-gray-300"><i class="ye ye-folder-open ye-sm"></i> Folder</button>
+                            <button type="button" class="flex items-center gap-1 hover:text-gray-300"><i class="ye ye-leaf ye-sm"></i> main</button>
                         </div>
                     </div>
                 </div>
-
-                <!-- <input v-model="userInput" type="text" :placeholder="`Ask about ${store.active?.activeFile?.name}...`"
-                    class="w-full rounded-lg border border-slate-800 bg-slate-950 py-2 pl-3 pr-8 text-xs text-slate-100 placeholder-slate-600 outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-                <button type="submit"
-                    class="absolute right-1.5 rounded-md p-1 text-slate-500 transition hover:text-slate-200">
-                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-                    </svg>
-                </button> -->
             </form>
         </div>
     </div>
@@ -155,10 +211,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useWorkspace } from '@/store/workspace'
-// import { GenerateProject } from '@wails/go/app/App'
 import { EventsOn, EventsOff } from '@wails/runtime/runtime'
-import { AgentChat } from '@wails/go/main/App'
-import type { agent } from '@wails/go/models'
+import { AgentChat, LoadConfigFromFile } from '@wails/go/main/App'
+import { providerOptions, type ModelGroup } from './ChatPanel'
+
+
+// ── Types ────────────────────────────────────────────────────────────────────
 
 interface ScaffoldProgress {
     file: string
@@ -168,22 +226,28 @@ interface ScaffoldProgress {
     error?: string
 }
 
-const store = useWorkspace();
-const chatHistoryContainer = ref<HTMLElement | null>(null);
-const userInput = ref('');
-const isAiThinking = ref(false);
-const newSession = ref(false);
-const currentSessionID = ref<string>("session-" + Math.random().toString(36).substring(2, 9));
-const selectedProvider = ref<string>("gemini");
+const store = useWorkspace()
 
-const messages = ref<any[]>([
-    {
-        role: 'assistant',
-        content: 'Welcome back! I have context access to your workspace structure. Pick any file from the explorer to begin refactoring.',
-    },
+const selectedProvider = ref<string>('ollama')
+const selectedModel    = ref<string>('qwen3:8b')
+const modelDropdownOpen = ref(false)
+const modelDropdownRef  = ref<HTMLElement | null>(null)
+
+const chatHistoryContainer = ref<HTMLElement | null>(null)
+const userInput = ref('')
+const isAiThinking = ref(false)
+const currentSessionID = ref<string>('session-' + Math.random().toString(36).substring(2, 9))
+
+const messages = ref<{ role: string; content: string }[]>([
+    // {
+    //     role: 'assistant',
+    //     content: 'Welcome back! I have context access to your workspace structure. Pick any file from the explorer to begin refactoring.',
+    // },
 ])
 
-// ── Scaffold progress state ──────────────────────────────────────────────────
+const newSession = computed<boolean>(()=>(messages.value.length == 0))
+
+// ── Scaffold progress ────────────────────────────────────────────────────────
 
 const scaffoldProgress = ref({
     active: false,
@@ -198,34 +262,67 @@ const progressPercent = computed(() => {
     return Math.round((scaffoldProgress.value.index / scaffoldProgress.value.total) * 100)
 })
 
+
+const currentProvider = computed(() =>
+    providerOptions.find(p => p.value === selectedProvider.value) ?? null
+)
+
+const groupedModels = computed<ModelGroup[]>(() =>
+    currentProvider.value?.modelGroups ?? []
+)
+
+function onProviderChange(value: string) {
+    selectedProvider.value = value
+    const p = providerOptions.find(p => p.value === value)
+    if (p) selectedModel.value = p.defaultModel
+    modelDropdownOpen.value = false
+}
+
+function onModelChange(value: string) {
+    selectedModel.value = value
+    modelDropdownOpen.value = false
+}
+
+// Close model dropdown on outside click
+function onOutsideClick(e: MouseEvent) {
+    if (modelDropdownOpen.value && !modelDropdownRef.value?.contains(e.target as Node)) {
+        modelDropdownOpen.value = false
+    }
+}
+
+
+// ── Store / refs ─────────────────────────────────────────────────────────────
+
 function resetScaffold() {
     scaffoldProgress.value = { active: false, file: '', index: 0, total: 0, files: [] }
 }
 
+// ── Message helpers ──────────────────────────────────────────────────────────
+
 const appendOrUpdateAssistant = (text: string) => {
-    const lastMsg = messages.value[messages.value.length - 1];
-    if (lastMsg && lastMsg.role === 'assistant') {
-        lastMsg.content += text;
+    const last = messages.value[messages.value.length - 1]
+    if (last && last.role === 'assistant') {
+        last.content += text
     } else {
-        messages.value.push({ role: 'assistant', content: text });
+        messages.value.push({ role: 'assistant', content: text })
     }
 }
 
-// ── Wails event listener ─────────────────────────────────────────────────────
+// ── Wails events ─────────────────────────────────────────────────────────────
 
-onMounted(() => {
+onMounted(async () => {
+    document.addEventListener('mousedown', onOutsideClick, true)
+    selectedProvider.value = await LoadConfigFromFile("DefaultProvider")
+    selectedModel.value = await LoadConfigFromFile("DefaultModel")
+
     EventsOn('scaffold:progress', (p: ScaffoldProgress) => {
         if (p.error) {
             isAiThinking.value = false
-            messages.value.push({
-                role: 'assistant',
-                content: `❌ Scaffold failed:\n${p.error}`,
-            })
+            messages.value.push({ role: 'assistant', content: `❌ Scaffold failed:\n${p.error}` })
             resetScaffold()
             scrollToBottom()
             return
         }
-
         if (p.done) {
             isAiThinking.value = false
             scaffoldProgress.value.active = false
@@ -236,40 +333,29 @@ onMounted(() => {
             scrollToBottom()
             return
         }
-
-        // Intermediate progress
         scaffoldProgress.value.active = true
-        scaffoldProgress.value.file = p.file
-        scaffoldProgress.value.index = p.index
-        scaffoldProgress.value.total = p.total
-
+        scaffoldProgress.value.file   = p.file
+        scaffoldProgress.value.index  = p.index
+        scaffoldProgress.value.total  = p.total
         if (p.file && p.file !== 'Contacting LLM…' && p.file !== 'Parsing plan…') {
             scaffoldProgress.value.files.push(p.file)
         }
-
         scrollToBottom()
     })
 
-    // In AiAssistant.vue — onMounted
     EventsOn('agent:message', (text: string) => {
-        // append or stream into the last assistant bubble
         appendOrUpdateAssistant(text)
         scrollToBottom()
     })
 
     EventsOn('agent:tool', (call: { name: string; input: string }) => {
-        // show a tool-call chip in the chat
-        messages.value.push({
-            role: 'tool',
-            content: `🔧 ${call.name}`,
-            // input: call.input,
-        })
+        messages.value.push({ role: 'tool', content: `🔧 ${call.name}` })
         scrollToBottom()
     })
 
     EventsOn('agent:done', () => {
         isAiThinking.value = false
-        store.fetchSessions();
+        store.fetchSessions()
     })
 
     EventsOn('agent:error', (msg: string) => {
@@ -279,6 +365,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+    document.removeEventListener('mousedown', onOutsideClick, true)
     EventsOff('scaffold:progress')
     EventsOff('agent:message')
     EventsOff('agent:tool')
@@ -286,7 +373,7 @@ onUnmounted(() => {
     EventsOff('agent:error')
 })
 
-// ── Chat helpers ─────────────────────────────────────────────────────────────
+// ── Scroll ───────────────────────────────────────────────────────────────────
 
 const scrollToBottom = async () => {
     await nextTick()
@@ -295,55 +382,28 @@ const scrollToBottom = async () => {
     }
 }
 
+// ── Send ─────────────────────────────────────────────────────────────────────
+
 const sendMessage = async () => {
-    if (!userInput.value.trim()) return
+    if (!userInput.value.trim() || isAiThinking.value) return
 
     const text = userInput.value.trim()
     userInput.value = ''
     messages.value.push({ role: 'user', content: text })
     scrollToBottom()
 
-    isAiThinking.value = true
-    newSession.value = false;
+    isAiThinking.value = true;
     resetScaffold()
 
     try {
-        await AgentChat(currentSessionID.value, text, selectedProvider.value)
+        await AgentChat(currentSessionID.value, text, selectedProvider.value, selectedModel.value)
     } catch (err: any) {
         isAiThinking.value = false
         messages.value.push({
             role: 'assistant',
-            content: `❌ Error: ${err?.message ?? String(err)}`,
+            content: `❌ ${err?.message ?? String(err)}`,
         })
         scrollToBottom()
-    }
-}
-
-const triggerAiAction = (actionType: 'explain' | 'optimize') => {
-    isAiThinking.value = true
-
-    if (actionType === 'explain') {
-        messages.value.push({ role: 'user', content: `Explain ${store.active!.activeFile!.name}` })
-        scrollToBottom()
-        setTimeout(() => {
-            isAiThinking.value = false
-            messages.value.push({
-                role: 'assistant',
-                content: `Analyzing \`${store.active!.activeFile!.name}\`...\n\nThis setup provides clean initialization patterns for structural layouts tagged under language group [${store.active!.activeFile!.lang}]. Code bounds look healthy.`,
-            })
-            scrollToBottom()
-        }, 900)
-    } else {
-        messages.value.push({ role: 'user', content: `Refactor ${store.active!.activeFile!.name}` })
-        scrollToBottom()
-        setTimeout(() => {
-            isAiThinking.value = false
-            messages.value.push({
-                role: 'assistant',
-                content: `Code clean-up complete for \`${store.active!.activeFile!.name}\`. Structural spacing and configuration layouts adjusted according to industry standard guidelines.`,
-            })
-            scrollToBottom()
-        }, 900)
     }
 }
 </script>
