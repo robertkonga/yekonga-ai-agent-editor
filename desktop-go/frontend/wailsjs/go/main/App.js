@@ -30,6 +30,10 @@ export function HomeDirectory(arg1) {
   return window['go']['main']['App']['HomeDirectory'](arg1);
 }
 
+export function ListIcons() {
+  return window['go']['main']['App']['ListIcons']();
+}
+
 export function ListSessions() {
   return window['go']['main']['App']['ListSessions']();
 }

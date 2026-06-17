@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"yekonga-builder/agent"
+	"yekonga-builder/icons"
 )
 
 // Define a unique service name for your app
@@ -52,6 +53,11 @@ func (a *App) startup(ctx context.Context) {
 // Greet returns a greeting for the given name
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
+}
+
+// ListIcons returns the list of available icons
+func (a *App) ListIcons() ([]icons.Icon, error) {
+	return icons.ListOfIcons()
 }
 
 // AgentChat calls the agent with session support
