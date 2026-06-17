@@ -12,8 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"yekonga-builder/agent"
-
-	"github.com/zalando/go-keyring"
 )
 
 // Define a unique service name for your app
@@ -34,10 +32,21 @@ func NewApp() *App {
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
-	apiKey, _ := a.LoadConfigFromFile("ApiKey")
+	apiKey, _ := a.LoadConfigFromFile("APIKey")
+	apiKeyGemini, _ := a.LoadAPIKey("gemini")
+	apiKeyAnthropic, _ := a.LoadAPIKey("anthropic")
+	apiKeyDeepseek, _ := a.LoadAPIKey("deepseek")
+	ollamaHost, _ := a.LoadOllamaHost()
+
+	apiKeys := agent.ApiKeys{
+		ApiKey:          apiKey,
+		GeminiApiKey:    apiKeyGemini,
+		AnthropicApiKey: apiKeyAnthropic,
+		DeepseekApiKey:  apiKeyDeepseek,
+	}
 
 	a.ctx = ctx
-	a.agent = agent.NewAgent(apiKey, &ctx)
+	a.agent = agent.NewAgent(apiKeys, ollamaHost, &ctx)
 }
 
 // Greet returns a greeting for the given name
@@ -46,8 +55,8 @@ func (a *App) Greet(name string) string {
 }
 
 // AgentChat calls the agent with session support
-func (a *App) AgentChat(sessionID string, userInput string, provider string) error {
-	return a.agent.AgentChat(sessionID, userInput, provider)
+func (a *App) AgentChat(sessionID string, userInput string, provider string, model string) error {
+	return a.agent.AgentChat(sessionID, userInput, provider, model)
 }
 
 func (a *App) ListSessions() ([]*agent.Session, error) {
@@ -59,28 +68,41 @@ func (a *App) GetSession(id string) (*agent.Session, error) {
 }
 
 // SaveAPIKey receives the key from the frontend and stores it securely
-func (a *App) SaveAPIKey(apiKey string) error {
-	if apiKey == "" {
-		return fmt.Errorf("API key cannot be empty")
+func (a *App) SaveAPIKey(name, value string) error {
+	key := fmt.Sprintf("APIKey_%s", name)
+
+	switch name {
+	case "gemini":
+		a.agent.GeminiApiKey = value
+	case "deepseek":
+		a.agent.DeepseekApiKey = value
+	case "anthropic":
+		a.agent.AnthropicApiKey = value
 	}
 
-	// Store the key in the OS keyring
-	err := keyring.Set(serviceName, accountName, apiKey)
-	if err != nil {
-		return fmt.Errorf("failed to save API key securely: %v", err)
-	}
-
-	return nil
+	return a.SaveConfigToFile(key, value)
 }
 
 // LoadAPIKey retrieves the key from the OS keyring for backend use
-func (a *App) LoadAPIKey() (string, error) {
-	secret, err := keyring.Get(serviceName, accountName)
-	if err != nil {
-		return "", fmt.Errorf("API key not found or error retrieving it: %v", err)
-	}
+func (a *App) LoadAPIKey(name string) (string, error) {
+	key := fmt.Sprintf("APIKey_%s", name)
 
-	return secret, nil
+	return a.LoadConfigFromFile(key)
+}
+
+// SaveAPIKey receives the key from the frontend and stores it securely
+func (a *App) SaveOllamaHost(value string) error {
+	key := "OllamaHost"
+	a.agent.OllamaHost = value
+
+	return a.SaveConfigToFile(key, value)
+}
+
+// LoadAPIKey retrieves the key from the OS keyring for backend use
+func (a *App) LoadOllamaHost() (string, error) {
+	key := "OllamaHost"
+
+	return a.LoadConfigFromFile(key)
 }
 
 // encryptionKey must be exactly 16, 24, or 32 bytes long to select
