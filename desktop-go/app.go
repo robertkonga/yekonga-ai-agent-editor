@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"yekonga-builder/agent"
 	"yekonga-builder/icons"
 )
@@ -21,8 +22,9 @@ const accountName = "default_user" // You can make this dynamic if your app has 
 
 // App struct
 type App struct {
-	ctx   context.Context
-	agent *agent.Agent
+	ctx      context.Context
+	agent    *agent.Agent
+	configMu sync.RWMutex
 }
 
 // NewApp creates a new App application struct
@@ -118,6 +120,9 @@ var encryptionKey = []byte("yekonga-editor-ultra-secure-key!")
 
 // SaveConfigToFile updates a specific key-value pair in the encrypted binary file
 func (a *App) SaveConfigToFile(key, value string) error {
+	a.configMu.Lock()
+	defer a.configMu.Unlock()
+
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return err
@@ -127,39 +132,40 @@ func (a *App) SaveConfigToFile(key, value string) error {
 	os.MkdirAll(appDir, os.ModePerm)
 	filePath := filepath.Join(appDir, "config.bin")
 
-	// 1. Initialize an empty map to hold our config
 	configMap := make(map[string]string)
 
-	// 2. Try to read and decrypt the existing file first
 	if encryptedData, err := os.ReadFile(filePath); err == nil {
 		if decryptedData, err := decrypt(encryptedData, encryptionKey); err == nil {
-			// If decryption succeeds, parse the JSON back into our map
-			// If this fails (e.g., file corrupted), we just ignore and overwrite
 			_ = json.Unmarshal(decryptedData, &configMap)
 		}
 	}
 
-	// 3. Update or add the new key-value pair
 	configMap[key] = value
 
-	// 4. Convert the map back to JSON bytes
 	jsonData, err := json.Marshal(configMap)
 	if err != nil {
 		return fmt.Errorf("failed to format config data: %v", err)
 	}
 
-	// 5. Encrypt the JSON data
 	newEncryptedData, err := encrypt(jsonData, encryptionKey)
 	if err != nil {
 		return fmt.Errorf("encryption failed: %v", err)
 	}
 
-	// 6. Write the newly encrypted payload back to the file
-	return os.WriteFile(filePath, newEncryptedData, 0600)
+	// Write to a temp file first, then atomically rename — prevents
+	// a crash mid-write from leaving a corrupt config.bin
+	tmpPath := filePath + ".tmp"
+	if err := os.WriteFile(tmpPath, newEncryptedData, 0600); err != nil {
+		return fmt.Errorf("failed to write temp config: %v", err)
+	}
+	return os.Rename(tmpPath, filePath)
 }
 
 // LoadConfigFromFile retrieves a specific key from the encrypted binary file
 func (a *App) LoadConfigFromFile(key string) (string, error) {
+	a.configMu.RLock()
+	defer a.configMu.RUnlock()
+
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
@@ -167,25 +173,21 @@ func (a *App) LoadConfigFromFile(key string) (string, error) {
 
 	filePath := filepath.Join(configDir, serviceName, "config.bin")
 
-	// 1. Read the binary file
 	encryptedData, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("config file not found: %v", err)
 	}
 
-	// 2. Decrypt the data
 	decryptedData, err := decrypt(encryptedData, encryptionKey)
 	if err != nil {
 		return "", fmt.Errorf("decryption failed (wrong key or corrupted file): %v", err)
 	}
 
-	// 3. Parse the JSON map
 	configMap := make(map[string]string)
 	if err := json.Unmarshal(decryptedData, &configMap); err != nil {
 		return "", fmt.Errorf("failed to read config format: %v", err)
 	}
 
-	// 4. Look for the requested key
 	value, exists := configMap[key]
 	if !exists {
 		return "", fmt.Errorf("key '%s' not found", key)
