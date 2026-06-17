@@ -45,7 +45,9 @@ export namespace icons {
 	export class Icon {
 	    name: string;
 	    path: string;
+	    language: string;
 	    extension: string;
+	    framework: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Icon(source);
@@ -55,7 +57,9 @@ export namespace icons {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
 	        this.path = source["path"];
+	        this.language = source["language"];
 	        this.extension = source["extension"];
+	        this.framework = source["framework"];
 	    }
 	}
 

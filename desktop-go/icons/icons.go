@@ -10,10 +10,13 @@ import (
 //go:embed icons/*
 var assets embed.FS
 
+// this is icon on project directory folder of file depend on the language and framework
 type Icon struct {
 	Name      string `json:"name"`
 	Path      string `json:"path"`
+	Language  string `json:"language"`
 	Extension string `json:"extension"`
+	Framework string `json:"framework"`
 }
 
 func ListOfIcons() ([]Icon, error) {
