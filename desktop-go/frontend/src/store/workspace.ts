@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, nextTick, reactive, ref } from 'vue';
 import * as monaco from 'monaco-editor';
-import { ReadDirectory, ReadFile, ListSessions, SaveFile, CreateDirectory, MoveFile, ListIcons } from '@wails/go/main/App';
+import { ReadDirectory, ReadFile, ListWorkspaceSessions, GetSession, SaveFile, CreateDirectory, MoveFile, ListIcons } from '@wails/go/main/App';
 import YekongaDatabase from '@/scripts/database';
 
 const WORKSHOP_TABLE = "workshops"
@@ -22,6 +22,14 @@ export interface FileNode {
     lastUpdate?: Date;
 }
 
+export interface Session {
+    id: string;
+    provider: string;
+    history: { role: string; content: any }[];
+    last_updated: string;
+    workspace: string;
+}
+
 export interface Workspace {
     id: string,
     name: string,
@@ -30,7 +38,7 @@ export interface Workspace {
     customizedView: CUSTOMIZATION_VIEW;
     workspaceFiles: FileNode[];
     changedFiles: FileNode[];
-    sessions: any[];
+    sessions: Session[];
     openTabs: FileNode[];
     activeFile: FileNode | null;
     viewStates: Record<string, monaco.editor.ICodeEditorViewState | null>;
@@ -53,8 +61,11 @@ export const useWorkspaceStore = (name: string) => {
         const active = ref<Workspace | null>(null);
         const icons: any[] = [];
 
+        // ── Active session tracking ──────────────────────────────────────────
+        const activeSessionId = ref<string | null>(null);
+        const activeSessionMessages = ref<{ role: string; content: string }[]>([]);
+
         const saveLocally = async () => {
-            // await db.table(WORKSHOP_TABLE).create(window.copy(active.value));
             // =================================================== //
 
             if(activePath.value && active.value) {
@@ -72,8 +83,8 @@ export const useWorkspaceStore = (name: string) => {
         }
 
         const setViewMode = async (value: VIEW_MODE) => {
-            active.value!.viewMode = value;
-
+            if (!active.value) return;
+            active.value.viewMode = value;
             await saveLocally();
         }
 
@@ -143,6 +154,9 @@ export const useWorkspaceStore = (name: string) => {
                 if(active.value && !["EDITOR","AGENT"].includes(active.value!.viewMode)) {
                     active.value!.viewMode = "AGENT";
                 }
+
+                // Load sessions for this workspace
+                await fetchSessions();
             } else {
                 activePath.value = null;
                 active.value = null;
@@ -209,12 +223,50 @@ export const useWorkspaceStore = (name: string) => {
         const fetchSessions = async () => {
             if (!active.value) return;
             try {
-                const sessions = await ListSessions();
+                // Use workspace-scoped session listing
+                const sessions = await ListWorkspaceSessions(activePath.value || "");
                 active.value.sessions = sessions || [];
                 saveLocally();
             } catch (error) {
                 console.error("Failed to fetch sessions:", error);
             }
+        }
+
+        // ── Load session history into the chat panel ──────────────────────
+        const selectSession = async (sessionId: string) => {
+            activeSessionId.value = sessionId;
+            activeSessionMessages.value = [];
+
+            try {
+                const session = await GetSession(sessionId);
+                if (session && session.history) {
+                    // Convert the history from the backend into plain message objects
+                    const messages: { role: string; content: string }[] = [];
+                    for (const msg of session.history) {
+                        if (typeof msg.content === 'string') {
+                            messages.push({ role: msg.role, content: msg.content });
+                        } else if (Array.isArray(msg.content)) {
+                            // ContentBlocks – extract text parts only
+                            const textParts = msg.content
+                                .filter((b: any) => b.type === 'text' && b.content)
+                                .map((b: any) => b.content);
+                            if (textParts.length > 0) {
+                                messages.push({ role: msg.role, content: textParts.join('\n') });
+                            }
+                        }
+                    }
+                    activeSessionMessages.value = messages;
+                }
+            } catch (error) {
+                console.error("Failed to load session:", error);
+            }
+        }
+
+        // ── Create a new session (resets the chat) ──────────────────────
+        const createNewSession = () => {
+            const id = "session-" + Math.random().toString(36).substring(2, 9);
+            activeSessionId.value = id;
+            activeSessionMessages.value = [];
         }
 
         const changeCustomizationView = async (name: CUSTOMIZATION_VIEW) => {
@@ -393,6 +445,8 @@ export const useWorkspaceStore = (name: string) => {
             icons,
             active,
             activePath,
+            activeSessionId,
+            activeSessionMessages,
             workspaces,
             loadIcons,
             openFile,
@@ -411,6 +465,8 @@ export const useWorkspaceStore = (name: string) => {
             trackChange,
             clearChange,
             fetchSessions,
+            selectSession,
+            createNewSession,
             createNewFile,
             createNewFolder,
             moveFile,
