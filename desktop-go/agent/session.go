@@ -15,6 +15,7 @@ type Session struct {
 	Provider    string              `json:"provider"`
 	History     []types.ChatMessage `json:"history"`
 	LastUpdated time.Time           `json:"last_updated"`
+	Workspace   string              `json:"workspace"` // workspace path this session belongs to
 }
 
 type SessionManager struct {
@@ -96,4 +97,19 @@ func (m *SessionManager) ListSessions() ([]*Session, error) {
 		}
 	}
 	return sessions, nil
+}
+
+// ListWorkspaceSessions returns all sessions that belong to the given workspace path.
+func (m *SessionManager) ListWorkspaceSessions(workspace string) ([]*Session, error) {
+	all, err := m.ListSessions()
+	if err != nil {
+		return nil, err
+	}
+	var filtered []*Session
+	for _, s := range all {
+		if s.Workspace == workspace {
+			filtered = append(filtered, s)
+		}
+	}
+	return filtered, nil
 }

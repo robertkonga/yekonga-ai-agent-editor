@@ -71,6 +71,10 @@ func (a *App) ListSessions() ([]*agent.Session, error) {
 	return a.agent.ListSessions()
 }
 
+func (a *App) ListWorkspaceSessions(workspace string) ([]*agent.Session, error) {
+	return a.agent.ListWorkspaceSessions(workspace)
+}
+
 func (a *App) GetSession(id string) (*agent.Session, error) {
 	return a.agent.GetSession(id)
 }

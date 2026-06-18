@@ -71,6 +71,10 @@ func (a *Agent) ListSessions() ([]*Session, error) {
 	return a.sessionManager.ListSessions()
 }
 
+func (a *Agent) ListWorkspaceSessions(workspace string) ([]*Session, error) {
+	return a.sessionManager.ListWorkspaceSessions(workspace)
+}
+
 func (a *Agent) GetSession(id string) (*Session, error) {
 	return a.sessionManager.GetSession(id)
 }
@@ -89,6 +93,7 @@ func (a *Agent) AgentChat(sessionID string, userMessage string, providerName str
 			Provider:    providerName,
 			History:     []types.ChatMessage{},
 			LastUpdated: time.Now(),
+			Workspace:   a.ActivePath,
 		}
 	}
 
