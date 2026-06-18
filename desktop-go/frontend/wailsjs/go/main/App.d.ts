@@ -22,6 +22,8 @@ export function ListIcons():Promise<Array<icons.Icon>>;
 
 export function ListSessions():Promise<Array<agent.Session>>;
 
+export function ListWorkspaceSessions(arg1:string):Promise<Array<agent.Session>>;
+
 export function LoadAPIKey(arg1:string):Promise<string>;
 
 export function LoadConfigFromFile(arg1:string):Promise<string>;

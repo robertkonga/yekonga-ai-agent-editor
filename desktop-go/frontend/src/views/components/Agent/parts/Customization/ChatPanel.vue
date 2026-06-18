@@ -248,7 +248,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useWorkspace } from '@/store/workspace'
 import { EventsOn, EventsOff } from '@wails/runtime/runtime'
 import { AgentChat, LoadConfigFromFile } from '@wails/go/main/App'
@@ -278,9 +278,10 @@ const userInput = ref('')
 const isAiThinking = ref(false)
 const currentSessionID = ref<string>('session-' + Math.random().toString(36).substring(2, 9))
 
+// Use the store's session messages when a session is selected
 const messages = ref<{ role: string; content: string }[]>([])
 
-const newSession = computed<boolean>(()=>(messages.value.length == 0))
+const newSession = computed<boolean>(() => messages.value.length === 0)
 
 // ── Scaffold progress ────────────────────────────────────────────────────────
 
@@ -342,6 +343,23 @@ const appendOrUpdateAssistant = (text: string) => {
         messages.value.push({ role: 'assistant', content: text })
     }
 }
+
+// ── Watch for session selection changes ──────────────────────────────────────
+
+watch(() => store.activeSessionId, (newId) => {
+    if (newId) {
+        currentSessionID.value = newId;
+        // Load the session's messages from the store (populated by selectSession)
+        messages.value = [...store.activeSessionMessages];
+    }
+});
+
+// When the store loads new messages (from selectSession), update local messages
+watch(() => store.activeSessionMessages, (newMessages) => {
+    if (store.activeSessionId && newMessages.length > 0) {
+        messages.value = [...newMessages];
+    }
+}, { deep: true });
 
 // ── Wails events ─────────────────────────────────────────────────────────────
 

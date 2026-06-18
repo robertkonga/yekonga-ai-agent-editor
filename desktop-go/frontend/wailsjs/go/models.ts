@@ -6,6 +6,7 @@ export namespace agent {
 	    history: types.ChatMessage[];
 	    // Go type: time
 	    last_updated: any;
+	    workspace: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Session(source);
@@ -17,6 +18,7 @@ export namespace agent {
 	        this.provider = source["provider"];
 	        this.history = this.convertValues(source["history"], types.ChatMessage);
 	        this.last_updated = this.convertValues(source["last_updated"], null);
+	        this.workspace = source["workspace"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

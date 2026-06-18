@@ -38,6 +38,10 @@ export function ListSessions() {
   return window['go']['main']['App']['ListSessions']();
 }
 
+export function ListWorkspaceSessions(arg1) {
+  return window['go']['main']['App']['ListWorkspaceSessions'](arg1);
+}
+
 export function LoadAPIKey(arg1) {
   return window['go']['main']['App']['LoadAPIKey'](arg1);
 }
