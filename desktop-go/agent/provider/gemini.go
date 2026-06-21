@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 	"yekonga-builder/agent/types"
-	"yekonga-builder/console"
+	// "yekonga-builder/console"
 )
 
 const (
@@ -63,7 +63,7 @@ func (p *GeminiProvider) Complete(ctx context.Context, system string, history []
 	}
 
 	payload, err := json.Marshal(req)
-	console.Error("gemini.payload", string(payload))
+	// console.Error("gemini.payload", string(payload))
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
@@ -86,7 +86,7 @@ func (p *GeminiProvider) Complete(ctx context.Context, system string, history []
 		return nil, fmt.Errorf("read body: %w", err)
 	}
 
-	console.Error("gemini.response", string(body))
+	// console.Error("gemini.response", string(body))
 
 	var result geminiResponse
 	if err := json.Unmarshal(body, &result); err != nil {

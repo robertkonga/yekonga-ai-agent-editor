@@ -8,7 +8,7 @@
                 <Project></Project>
             </template>
             <template v-else>
-                <ChatPanel></ChatPanel>
+                <ChatPanel :sessionId="store.active!.sessionId" :small="false"></ChatPanel>
             </template>
         </div>
     </div>
@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useWorkspace, type CUSTOMIZATION_VIEW } from '@/store/workspace';
-import ChatPanel from './parts/Customization/ChatPanel.vue';
+import ChatPanel from '../Chat/ChatPanel.vue';
 import Project from './parts/Customization/Project.vue';
 import DataSchema from './parts/Customization/DataSchema.vue';
 

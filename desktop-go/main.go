@@ -17,8 +17,8 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:                    "yekonga-builder",
-		Width:                    1024,
+		Title:                    "Yekonga Editor",
+		Width:                    1224,
 		Height:                   768,
 		Frameless:                true,
 		EnableDefaultContextMenu: false,

@@ -236,7 +236,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useWorkspace } from '@/store/workspace'
 import { EventsOn, EventsOff } from '@wails/runtime/runtime'
 import { AgentChat, LoadConfigFromFile } from '@wails/go/main/App'
-import { providerOptions, type ProviderConfig, type ModelGroup } from './ChatPanel'
+import { providerOptions, type ProviderConfig, type ModelGroup } from '@/views/components/Chat/ChatPanel'
 
 // ── Store ────────────────────────────────────────────────────────────────────
 

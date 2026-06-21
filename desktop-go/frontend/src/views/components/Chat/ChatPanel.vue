@@ -265,6 +265,11 @@ interface ScaffoldProgress {
     error?: string
 }
 
+const props = defineProps<{
+    sessionId?: string
+    small: boolean
+}>()
+
 const store = useWorkspace()
 
 const selectedProvider = ref<string>('ollama')
@@ -276,12 +281,12 @@ const modelDropdownRef  = ref<HTMLElement | null>(null)
 const chatHistoryContainer = ref<HTMLElement | null>(null)
 const userInput = ref('')
 const isAiThinking = ref(false)
-const currentSessionID = ref<string>('session-' + Math.random().toString(36).substring(2, 9))
+const currentSessionID = ref<string>(props.sessionId || 'session-' + Math.random().toString(36).substring(2, 9))
 
 // Use the store's session messages when a session is selected
 const messages = ref<{ role: string; content: string }[]>([])
 
-const newSession = computed<boolean>(() => messages.value.length === 0)
+const newSession = computed<boolean>(() => (props.small? false : messages.value.length === 0))
 
 // ── Scaffold progress ────────────────────────────────────────────────────────
 

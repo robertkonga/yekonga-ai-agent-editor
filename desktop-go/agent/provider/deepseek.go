@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 	"yekonga-builder/agent/types"
-	"yekonga-builder/console"
+	// "yekonga-builder/console"
 )
 
 const (
@@ -69,7 +69,7 @@ func (p *DeepSeekProvider) Complete(ctx context.Context, system string, history 
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
-	console.Error("deepseek.payload", string(payload))
+	// console.Error("deepseek.payload", string(payload))
 
 	url := deepSeekBaseURL + "/chat/completions"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
@@ -105,6 +105,7 @@ func (p *DeepSeekProvider) Complete(ctx context.Context, system string, history 
 	if len(result.Choices) == 0 {
 		return nil, fmt.Errorf("DeepSeek returned no choices")
 	}
+	// console.Error("deepseek.response", string(body))
 
 	choice := result.Choices[0]
 	response := &LLMResponse{}
