@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"yekonga-builder/types"
 )
 
 // ToolExecutor handles all tool executions with proper error handling and security
@@ -120,6 +121,8 @@ func (e *ToolExecutor) Execute(name string, rawInput json.RawMessage) (string, e
 		return e.handleGenerateDataSchema(rawInput)
 	case "generate_crud":
 		return e.handleGenerateCRUD(rawInput, resolvePath, validatePath)
+	case "create_project":
+		return e.handleCreateProject(rawInput, resolvePath)
 	case "read_template":
 		return e.handleReadTemplate(rawInput)
 	case "list_templates":
@@ -1061,6 +1064,170 @@ func (e *ToolExecutor) handleGenerateCRUD(rawInput json.RawMessage, resolvePath 
 
 	// Placeholder - implement actual CRUD generation
 	return fmt.Sprintf("🔄 CRUD generation started for target: %s", path), nil
+}
+
+// ── Project planning handler ──────────────────────────────────────────────────
+
+func (e *ToolExecutor) handleCreateProject(rawInput json.RawMessage, resolvePath func(string) string) (string, error) {
+	var in struct {
+		ProjectName string `json:"project_name"`
+		Description string `json:"description"`
+		Size        string `json:"size"`
+		Complexity  string `json:"complexity"`
+		Modules     string `json:"modules"`
+		Features    string `json:"features"`
+		DBTablesMin int    `json:"db_tables_min"`
+		DBTablesMax int    `json:"db_tables_max"`
+		Framework   string `json:"framework,omitempty"`
+		RootPath    string `json:"root_path"`
+	}
+	if err := json.Unmarshal(rawInput, &in); err != nil {
+		return "", fmt.Errorf("invalid input: %w", err)
+	}
+
+	// Validate required fields
+	if strings.TrimSpace(in.ProjectName) == "" {
+		return "", fmt.Errorf("project_name is required")
+	}
+	if strings.TrimSpace(in.Description) == "" {
+		return "", fmt.Errorf("description is required")
+	}
+	if strings.TrimSpace(in.Modules) == "" {
+		return "", fmt.Errorf("modules is required - provide at least one module")
+	}
+
+	// Validate size
+	validSizes := map[string]bool{"small": true, "middle": true, "large": true}
+	if !validSizes[in.Size] {
+		return "", fmt.Errorf("size must be one of: small, middle, large")
+	}
+
+	// Validate complexity
+	validComplexity := map[string]bool{"low": true, "medium": true, "high": true}
+	if !validComplexity[in.Complexity] {
+		return "", fmt.Errorf("complexity must be one of: low, medium, high")
+	}
+
+	// Resolve root path
+	rootPath := resolvePath(in.RootPath)
+	if rootPath == "" {
+		return "", fmt.Errorf("root_path is required")
+	}
+
+	// Emit progress
+	e.Agent.Emit(types.ScaffoldProgress{File: "Starting project planning for: " + in.ProjectName})
+
+	// Create the project directory
+	projectDir, err := CreateProjectDirectory(rootPath, in.ProjectName)
+	if err != nil {
+		return "", fmt.Errorf("create project directory: %w", err)
+	}
+
+	// Build requirements
+	req := ProjectRequirements{
+		Name:        in.ProjectName,
+		Description: in.Description,
+		Size:        in.Size,
+		Complexity:  in.Complexity,
+		Framework:   in.Framework,
+		DBTablesMin: in.DBTablesMin,
+		DBTablesMax: in.DBTablesMax,
+		Modules:     in.Modules,
+		Features:    in.Features,
+		RootPath:    projectDir,
+	}
+
+	// Generate the project plan using LLM
+	plan, err := e.Agent.GenerateProjectPlan(req)
+	if err != nil {
+		return "", fmt.Errorf("generate project plan: %w", err)
+	}
+
+	// Create the project scaffolding from the plan
+	e.Agent.Emit(types.ScaffoldProgress{File: "Creating project structure and files…"})
+
+	if err := e.Agent.CreateProjectFromPlan(plan, projectDir); err != nil {
+		// If scaffolding fails, still return the plan so the user can see it
+		planJSON, _ := json.MarshalIndent(plan, "", "  ")
+		return fmt.Sprintf("⚠️ Project plan created but scaffolding encountered an error: %v\n\nHere is the plan that was generated:\n%s", err, string(planJSON)), nil
+	}
+
+	// Format and return the plan summary
+	return formatPlanSummary(plan, projectDir), nil
+}
+
+func formatPlanSummary(plan *ProjectPlan, projectDir string) string {
+	var b strings.Builder
+
+	b.WriteString(fmt.Sprintf("✅ Project '%s' created successfully!\n", plan.Name))
+	b.WriteString(fmt.Sprintf("📍 Location: %s\n\n", projectDir))
+
+	b.WriteString("📋 PROJECT OVERVIEW\n")
+	b.WriteString(fmt.Sprintf("  Description: %s\n", plan.Description))
+	b.WriteString(fmt.Sprintf("  Size: %s | Complexity: %s\n", plan.Size, plan.Complexity))
+	b.WriteString(fmt.Sprintf("  Framework: %s\n", plan.Framework))
+	b.WriteString(fmt.Sprintf("  Database: %d - %d tables/collections\n\n", plan.DBTablesMin, plan.DBTablesMax))
+
+	b.WriteString("📦 MODULE GROUPS\n")
+	for _, group := range plan.ModuleGroups {
+		b.WriteString(fmt.Sprintf("  📁 %s - %s\n", group.Name, group.Description))
+		for _, mod := range group.Modules {
+			b.WriteString(fmt.Sprintf("    • %s\n", mod))
+		}
+	}
+	b.WriteString("\n")
+
+	b.WriteString("🧭 NAVIGATION STRUCTURE\n")
+	var writeNav func(items []NavigationItem, depth int)
+	writeNav = func(items []NavigationItem, depth int) {
+		indent := strings.Repeat("  ", depth)
+		for _, item := range items {
+			icon := "•"
+			if depth == 0 {
+				icon = "📍"
+			}
+			b.WriteString(fmt.Sprintf("  %s%s %s -> %s\n", indent, icon, item.Label, item.Route))
+			if len(item.Children) > 0 {
+				writeNav(item.Children, depth+1)
+			}
+		}
+	}
+	writeNav(plan.Navigation, 0)
+	b.WriteString("\n")
+
+	b.WriteString("🗄️ DATABASE COLLECTIONS\n")
+	for _, col := range plan.DatabaseCollections {
+		b.WriteString(fmt.Sprintf("  • %s\n", col))
+	}
+	b.WriteString("\n")
+
+	b.WriteString("📁 DIRECTORY STRUCTURE\n")
+	for _, dir := range plan.DirectoryStructure {
+		b.WriteString(fmt.Sprintf("  • %s\n", dir))
+	}
+	b.WriteString("\n")
+
+	b.WriteString("⚙️ TECHNOLOGY STACK\n")
+	for k, v := range plan.TechStack {
+		b.WriteString(fmt.Sprintf("  • %s: %s\n", k, v))
+	}
+	b.WriteString("\n")
+
+	if len(plan.Notes) > 0 {
+		b.WriteString("📝 NOTES\n")
+		for _, note := range plan.Notes {
+			b.WriteString(fmt.Sprintf("  • %s\n", note))
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("💡 Next steps:\n")
+	b.WriteString("  1. Review the module groups and navigation structure above\n")
+	b.WriteString("  2. Each module has its own directory with placeholder structure\n")
+	b.WriteString("  3. Run the project to see the generated scaffolding\n")
+	b.WriteString("  4. Use the agent to implement specific features\n")
+
+	return b.String()
 }
 
 func (e *ToolExecutor) handleReadTemplate(rawInput json.RawMessage) (string, error) {
