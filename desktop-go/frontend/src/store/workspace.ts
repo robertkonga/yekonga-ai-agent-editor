@@ -121,7 +121,7 @@ export const useWorkspaceStore = (name: string) => {
         const openWorkshop = async (path: string | null) => {
             if(path) {
                 let id = await generateID(path);
-                let name = path.split("/").pop() || "";
+                let name = getFileName(path) || "";
 
                 if(!workspaces[path]) {
                     workspaces[path] = {
@@ -489,6 +489,12 @@ export const useWorkspace = () => {
     workspace.loadWorkshops();
 
     return workspace;
+}
+
+function getFileName(filePath: string) {
+  // Normalize: split on either slash type, take the last non-empty segment
+  const parts = filePath.split(/[\\/]/);
+  return parts.pop() || parts.pop(); // handles trailing slash case
 }
 
 const testWorkshopFiles:FileNode[] = [

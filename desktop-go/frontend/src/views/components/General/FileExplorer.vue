@@ -10,7 +10,7 @@
         <div class="flex-1 overflow-y-auto pb-2">
             <template v-if="store.active">
                 <div class="flex items-center justify-between bg-slate-700/30 text-sm pl-3 pr-1 py-1">
-                    <span>{{ store.active.path.split('/').pop() }}</span>
+                    <span class="block truncate w-full" :title="store.active.path">{{ store.active.name }}</span>
                     <div class="flex gap-1">
                         <span @click="createFileAtRoot" class="size-5 flex items-center justify-center cursor-pointer group">
                             <i class="ye ye-file-plus text-slate-500 group-hover:text-white"></i>

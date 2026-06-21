@@ -1,7 +1,7 @@
 <template>
     <teleport to="[main-modal-container]">
         <div v-if="modelValue"
-            class="fixed inset-0 z-50 flex overflow-hidden w-full h-full backdrop-blur-sm"
+            class="fixed inset-0 z-50 flex overflow-hidden w-full h-full backdrop-blur-xs"
             :class="{
                 'justify-end': side === 'right',
                 'justify-start': side === 'left',
@@ -10,7 +10,7 @@
             }" role="dialog" aria-modal="true" aria-labelledby="modal-title">
 
             <!-- Backdrop -->
-            <div class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm transition-opacity"
+            <div class="fixed inset-0 bg-slate-900/10 backdrop-blur-xs transition-opacity"
                 @click="onToggleModal">
             </div>
 
@@ -20,7 +20,7 @@
                     // Size & Layout Logic
                     side === 'center' ? ' h-full max-h-screen' : 'h-full',
                     (side === 'center' && size != 'full')? 'rounded-none md:rounded-xl':'',
-                    size === 'full' ? 'w-full': 'border dark:border-gray-700/30',
+                    size === 'full' ? 'w-full': 'border border-slate-800/90',
                     size === 'lg' ? (side === 'center' ? 'max-w-4xl' : 'max-w-lg') : '',
                     size === 'sm' ? (side === 'center' ? 'max-w-sm' : 'max-w-xs') : '',
                     size === 'sm' ? (side === 'center' ? 'max-w-sm' : 'max-w-xs') : '',
