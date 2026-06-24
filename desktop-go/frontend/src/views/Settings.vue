@@ -246,7 +246,7 @@
 <script setup lang="ts">
 import { ref, onMounted, defineComponent, h, watch } from 'vue'
 import { SaveConfigToFile, LoadConfigFromFile, SaveAPIKey, SaveOllamaHost } from '@wails/go/main/App'
-import { providerOptions, type ModelGroup } from './components/Agent/parts/Customization/ChatPanel'
+import { providerOptions, type ModelGroup } from '@/views/components/Chat/ChatPanel'
 import { computed } from 'vue'
 
 // ── Inline sub-components ────────────────────────────────────────────────────
