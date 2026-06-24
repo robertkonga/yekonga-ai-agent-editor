@@ -16,4 +16,7 @@ export default defineConfig({
             '@wails': path.resolve(__dirname, "wailsjs"),
         },
     },
+    build: {
+        emptyOutDir: true,  // already default, but forces it explicitly
+    }
 })

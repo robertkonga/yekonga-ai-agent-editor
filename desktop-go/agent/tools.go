@@ -321,6 +321,26 @@ var agentTools = []provider.Tool{
 	// ── Code generation ───────────────────────────────────────────────────────
 
 	{
+		Name:        "create_project",
+		Description: "Create a new project with requirements gathering, module grouping, and navigation planning. Takes project specifications and generates a comprehensive plan with module groupings and navigation structure before scaffolding.",
+		InputSchema: provider.Schema{
+			Type: "object",
+			Properties: map[string]provider.Property{
+				"project_name":  {Type: "string", Description: "Name of the project"},
+				"description":   {Type: "string", Description: "Detailed description of what the project does"},
+				"size":          {Type: "string", Description: "Project size: 'small', 'middle', or 'large'"},
+				"complexity":    {Type: "string", Description: "Project complexity: 'low', 'medium', or 'high'"},
+				"modules":       {Type: "string", Description: "Comma-separated list of modules/features to include"},
+				"features":      {Type: "string", Description: "Detailed feature descriptions and requirements"},
+				"db_tables_min": {Type: "number", Description: "Minimum number of database tables/collections expected"},
+				"db_tables_max": {Type: "number", Description: "Maximum number of database tables/collections expected"},
+				"framework":     {Type: "string", Description: "Preferred framework/language (optional, will be auto-recommended if omitted)"},
+				"root_path":     {Type: "string", Description: "The absolute path where the project should be created"},
+			},
+			Required: []string{"project_name", "description", "size", "complexity", "modules", "db_tables_min", "db_tables_max", "root_path"},
+		},
+	},
+	{
 		Name:        "initialize_project",
 		Description: "Initialize a new project with a standard directory structure and configuration files based on a description.",
 		InputSchema: provider.Schema{
