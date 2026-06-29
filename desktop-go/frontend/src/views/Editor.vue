@@ -42,7 +42,7 @@
         <!-- Chat Panel (Left pane) -->
         <div v-if="store.active" class="h-full bg-slate-800 flex flex-col"
             :style="{ width: rightWidth + 'px' }">
-            <ChatPanel :sessionId="store.active?.sessionId" :small="true" />
+            <ChatPanel :sessionId="store.active?.sessionId!" :small="true" />
         </div>
     </div>
 </template>

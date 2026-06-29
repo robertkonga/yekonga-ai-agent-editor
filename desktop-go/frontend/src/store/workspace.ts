@@ -34,6 +34,7 @@ export interface Workspace {
     id: string,
     name: string,
     path: string;
+    sessionId: string | null;
     viewMode: VIEW_MODE;
     customizedView: CUSTOMIZATION_VIEW;
     workspaceFiles: FileNode[];
@@ -128,6 +129,7 @@ export const useWorkspaceStore = (name: string) => {
                         id: id,
                         name: name,
                         path: path,
+                        sessionId: null,
                         workspaceFiles: [],
                         changedFiles: [],
                         sessions: [],

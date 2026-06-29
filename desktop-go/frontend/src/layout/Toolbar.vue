@@ -1,7 +1,12 @@
 <template>
     <!-- [app-region:drag] is a Tailwind arbitrary property for Electron drag -->
-    <div class="flex h-7 select-none items-center justify-between font-sans text-xs [--wails-draggable:drag]"
-        :class="isMaximized ? 'bg-slate-900' : 'bg-slate-900'" >
+    <div class="flex h-8 select-none items-center justify-between font-sans text-xs [--wails-draggable:drag]"
+        :class="[
+            isMaximized ? 'bg-slate-900' : 'bg-slate-900',
+            {
+                'border-b border-slate-700/20': (store.active && store.active.viewMode == 'EDITOR')
+            }
+        ]" >
         <!-- Drag region + title -->
         <div class="flex h-full min-w-0 flex-1 items-center overflow-hidden pl-2 [app-region:drag] space-x-6">
             <span v-if="showTitle" class="truncate font-normal text-[#cccccc]/85">

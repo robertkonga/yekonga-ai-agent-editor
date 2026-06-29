@@ -6,24 +6,26 @@
                     <OpenTabs></OpenTabs>
                 </div>
             </div>
-            <div class="flex space-x-2 px-3 border-l border-slate-800/60">
-                <button @click="saveFileContent()"
-                    class="flex items-center space-x-1 rounded-md bg-indigo-900 px-2 py-1.5 cursor-pointer text-xs font-semibold text-white transition hover:bg-indigo-800 active:scale-95 shadow-md shadow-green-600/10">
-                    <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                        <polyline points="17 21 17 13 7 13 7 21" />
-                        <polyline points="7 3 7 8 15 8" />
-                    </svg>
-                    <!-- <span>Save</span> -->
-                </button>
-                <button v-if="false" @click="runCode"
-                    class="flex items-center space-x-1 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-500 active:scale-95 shadow-md shadow-indigo-600/10">
-                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347c-.75.412-1.667-.13-1.667-.986V5.653Z" />
-                    </svg>
-                    <span>Execute</span>
-                </button>
+            <div class="h-full flex items-center border-l border-slate-800/60">
+                <div class="flex space-x-2 px-3">
+                    <button @click="saveFileContent()"
+                        class="flex items-center space-x-1 rounded-md bg-indigo-900 px-2 py-1.5 cursor-pointer text-xs font-semibold text-white transition hover:bg-indigo-800 active:scale-95 shadow-md shadow-green-600/10">
+                        <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                            <polyline points="17 21 17 13 7 13 7 21" />
+                            <polyline points="7 3 7 8 15 8" />
+                        </svg>
+                        <!-- <span>Save</span> -->
+                    </button>
+                    <button v-if="false" @click="runCode"
+                        class="flex items-center space-x-1 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-500 active:scale-95 shadow-md shadow-indigo-600/10">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347c-.75.412-1.667-.13-1.667-.986V5.653Z" />
+                        </svg>
+                        <span>Execute</span>
+                    </button>
+                </div>
             </div>
         </div>
 
