@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=ye-code
+Exec=ye-code
+Icon=ye-code
+Categories=Development;
+Terminal=false
+Keywords=wails
+Version=1.0
+StartupNotify=false

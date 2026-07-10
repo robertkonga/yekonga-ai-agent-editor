@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { computed, nextTick, reactive, ref } from 'vue';
+import { computed, nextTick, reactive, ref, type Ref } from 'vue';
 import * as monaco from 'monaco-editor';
 import { ReadDirectory, ReadFile, ListWorkspaceSessions, GetSession, SaveFile, CreateDirectory, MoveFile, ListIcons } from '@wails/go/main/App';
 import YekongaDatabase from '@/scripts/database';
@@ -7,7 +7,10 @@ import YekongaDatabase from '@/scripts/database';
 const WORKSHOP_TABLE = "workshops"
 
 export type VIEW_MODE = "EDITOR" | "AGENT" | "WORKSPACE" | "NONE";
+export type EXPLORE_VIEW = "FILES" | "SEARCH" | "GIT";
 export type CUSTOMIZATION_VIEW = "AGENT" | "DATA_SCHEMA" | "PROJECT";
+export type DragSide = 'left' | 'right' | null;
+export type SIDE_VIEW = 'editor' | 'agent';
 
 export interface FileNode {
     id: string;
@@ -30,12 +33,29 @@ export interface Session {
     workspace: string;
 }
 
+export interface SideState {
+    minLeft: number;
+    maxLeft: number;
+    minRight: number;
+    maxRight: number; 
+
+    leftWidth: number;
+    rightWidth: number;
+    isDragging: boolean;
+
+    dragSide: DragSide;
+    startX: number;
+    startLeft: number;
+    startRight: number;
+}
+
 export interface Workspace {
     id: string,
     name: string,
     path: string;
     sessionId: string | null;
     viewMode: VIEW_MODE;
+    exportView: EXPLORE_VIEW;
     customizedView: CUSTOMIZATION_VIEW;
     workspaceFiles: FileNode[];
     changedFiles: FileNode[];
@@ -45,6 +65,11 @@ export interface Workspace {
     viewStates: Record<string, monaco.editor.ICodeEditorViewState | null>;
     isPinned?: boolean;
     lastOpened: Date;
+    /** When set, the editor will navigate to this line after opening the next file */
+    pendingLineNumber: number | null;
+
+    sideView: SIDE_VIEW;
+    sideStates: Record<SIDE_VIEW, SideState>;
 }
 
 
@@ -61,10 +86,13 @@ export const useWorkspaceStore = (name: string) => {
         const activePath = ref<string | null>(null);
         const active = ref<Workspace | null>(null);
         const icons: any[] = [];
+        const isSimpleIcon = ref<boolean>(false);
 
         // ── Active session tracking ──────────────────────────────────────────
-        const activeSessionId = ref<string | null>(null);
         const activeSessionMessages = ref<{ role: string; content: string }[]>([]);
+        const activeSideView = computed<SideState>(() => {
+            return active.value!.sideStates[active.value!.sideView];
+        });
 
         const saveLocally = async () => {
             // =================================================== //
@@ -83,9 +111,31 @@ export const useWorkspaceStore = (name: string) => {
             window.savaLocalData(data)
         }
 
-        const setViewMode = async (value: VIEW_MODE) => {
+        const setViewMode = async (value: VIEW_MODE | null ) => {
             if (!active.value) return;
-            active.value.viewMode = value;
+            if(value === null) {
+                active.value = null;
+            } else {
+                active.value.viewMode = value;
+    
+                if(value === "AGENT") {
+                    active.value.sideView = "agent";
+                } else if(value === "EDITOR") {
+                    active.value.sideView = "editor";
+                }
+
+                await saveLocally();
+            }
+
+        }
+
+        const setSimpleIcon = async (value: boolean) => {
+            isSimpleIcon.value = value;
+        }
+
+        const setViewExplore = async (value: EXPLORE_VIEW) => {
+            if (!active.value) return;
+            active.value.exportView = value;
             await saveLocally();
         }
 
@@ -130,6 +180,7 @@ export const useWorkspaceStore = (name: string) => {
                         name: name,
                         path: path,
                         sessionId: null,
+                        exportView: "FILES",
                         workspaceFiles: [],
                         changedFiles: [],
                         sessions: [],
@@ -140,6 +191,40 @@ export const useWorkspaceStore = (name: string) => {
                         lastOpened: new Date(),
                         customizedView: "AGENT",
                         viewMode: "EDITOR",
+                        pendingLineNumber: null,
+                        sideView: "editor",
+                        sideStates: {
+                            "agent": {
+                                minLeft: 200,
+                                maxLeft: 500,
+                                minRight: 200,
+                                maxRight: 600,
+
+                                leftWidth: 256,
+                                rightWidth: 288,
+                                isDragging: false,
+
+                                dragSide: null,
+                                startX: 0,
+                                startLeft: 0,
+                                startRight: 0
+                            },
+                            "editor": {
+                                minLeft: 200,
+                                maxLeft: 500,
+                                minRight: 200,
+                                maxRight: 600,
+
+                                leftWidth: 256,
+                                rightWidth: 288,
+                                isDragging: false,
+
+                                dragSide: null,
+                                startX: 0,
+                                startLeft: 0,
+                                startRight: 0
+                            }
+                        }
                     }
                 } else {
                     workspaces[path].lastOpened = new Date();
@@ -227,6 +312,15 @@ export const useWorkspaceStore = (name: string) => {
             try {
                 // Use workspace-scoped session listing
                 const sessions = await ListWorkspaceSessions(activePath.value || "");
+                if(Array.isArray(sessions)) {
+                    // Sort sessions by last_updated in descending order
+                    sessions.sort((a, b) => new Date(b.last_updated).getTime() - new Date(a.last_updated).getTime());
+
+                    active.value.sessions = sessions;
+                } else {
+                    active.value.sessions = [];
+                }
+
                 active.value.sessions = sessions || [];
                 saveLocally();
             } catch (error) {
@@ -236,7 +330,7 @@ export const useWorkspaceStore = (name: string) => {
 
         // ── Load session history into the chat panel ──────────────────────
         const selectSession = async (sessionId: string) => {
-            activeSessionId.value = sessionId;
+            active.value!.sessionId = sessionId;
             activeSessionMessages.value = [];
 
             try {
@@ -267,7 +361,7 @@ export const useWorkspaceStore = (name: string) => {
         // ── Create a new session (resets the chat) ──────────────────────
         const createNewSession = () => {
             const id = "session-" + Math.random().toString(36).substring(2, 9);
-            activeSessionId.value = id;
+            active.value!.sessionId = id;
             activeSessionMessages.value = [];
         }
 
@@ -306,7 +400,8 @@ export const useWorkspaceStore = (name: string) => {
         }
 
         /**
-         * Opens a file and captures the previous file's layout state snapshot
+         * Opens a file and captures the previous file's layout state snapshot.
+         * If the workspace has a pendingLineNumber, the editor will scroll to that line after opening.
          */
         const openFile = async (fileNode: FileNode, editorInstance: monaco.editor.ICodeEditor | null ): Promise<string | void> => {
             fileNode = window.copy(fileNode);
@@ -362,9 +457,18 @@ export const useWorkspaceStore = (name: string) => {
                 editorInstance.setValue(fileNode.content || "");
                 monaco.editor.setModelLanguage(editorInstance!.getModel() as monaco.editor.ITextModel, fileNode.lang || "");
                 
-                editorInstance.focus();
-                if(savedState) {
-                    editorInstance.restoreViewState(savedState)
+                // Scroll to pending line number (set by search results or other navigation)
+                const pendingLine = active.value!.pendingLineNumber;
+                if (pendingLine !== null && pendingLine > 0) {
+                    editorInstance.revealLineInCenter(pendingLine);
+                    editorInstance.setPosition({ lineNumber: pendingLine, column: 1 });
+                    editorInstance.focus();
+                    active.value!.pendingLineNumber = null;
+                } else {
+                    editorInstance.focus();
+                    if(savedState) {
+                        editorInstance.restoreViewState(savedState)
+                    }
                 }
             }
 
@@ -435,24 +539,68 @@ export const useWorkspaceStore = (name: string) => {
             } else {
                 active.value!.activeFile = null;
             }
-            
         }
 
         const loadIcons = async () => {
             let list = await ListIcons()
             console.log(list)
         }
+
+
+        const startDrag = async (side: DragSide, e: MouseEvent) => {
+            active.value!.sideStates[active.value!.sideView].isDragging = true;
+            active.value!.sideStates[active.value!.sideView].dragSide = side;
+            active.value!.sideStates[active.value!.sideView].startX = e.clientX;
+            active.value!.sideStates[active.value!.sideView].startLeft = active.value!.sideStates[active.value!.sideView].leftWidth;
+            active.value!.sideStates[active.value!.sideView].startRight = active.value!.sideStates[active.value!.sideView].rightWidth;
+
+            await saveLocally();
+        }
+
+        const onMouseMove = async (e: MouseEvent) => {
+            if (!active.value!.sideStates[active.value!.sideView].isDragging || !active.value!.sideStates[active.value!.sideView].dragSide) return
+
+            const dx = e.clientX - active.value!.sideStates[active.value!.sideView].startX
+
+            if (active.value!.sideStates[active.value!.sideView].dragSide === 'left') {
+                const newWidth = Math.min(active.value!.sideStates[active.value!.sideView].maxLeft, Math.max(active.value!.sideStates[active.value!.sideView].minLeft, active.value!.sideStates[active.value!.sideView].startLeft + dx))
+                active.value!.sideStates[active.value!.sideView].leftWidth = newWidth
+            } else if (active.value!.sideStates[active.value!.sideView].dragSide === 'right') {
+                const newWidth = Math.min(active.value!.sideStates[active.value!.sideView].maxRight, Math.max(active.value!.sideStates[active.value!.sideView].minRight, active.value!.sideStates[active.value!.sideView].startRight - dx))
+                active.value!.sideStates[active.value!.sideView].rightWidth = newWidth
+            }
+
+            window.dispatchEvent(new Event("resize"));
+            await saveLocally();
+        }
+
+        const onMouseUp = async () => {
+            if (active.value!.sideStates[active.value!.sideView].isDragging) {
+                active.value!.sideStates[active.value!.sideView].isDragging = false
+                active.value!.sideStates[active.value!.sideView].dragSide = null
+            }
+
+            await saveLocally();
+        }
     
         return {
             icons,
+            isSimpleIcon,
             active,
             activePath,
-            activeSessionId,
+            activeSideView,
             activeSessionMessages,
             workspaces,
+
+            startDrag,
+            onMouseMove,
+            onMouseUp,
+
             loadIcons,
+            setSimpleIcon,
             openFile,
             setViewMode,
+            setViewExplore,
             setActiveFile,
             closeTab,
             saveLocally,
@@ -499,32 +647,3 @@ function getFileName(filePath: string) {
   return parts.pop() || parts.pop(); // handles trailing slash case
 }
 
-const testWorkshopFiles:FileNode[] = [
-    {
-        id: 'src-dir',
-        name: 'src',
-        type: 'directory',
-        expanded: true,
-        children: [
-            {
-                id: 'src-dir-1',
-                name: 'assets',
-                type: 'directory',
-                expanded: true,
-                children: [
-                    { id: 'app-js-1', name: 'generator.js', type: 'file', lang: 'javascript', content: `// Core logic entrypoint\nexport function initialize() {\n  console.log("App loaded smoothly.");\n}` },
-                    { id: 'styles-css-1', name: 'generator.css', type: 'file', lang: 'css', content: `/* Core workspace presentation styling */\nbody {\n  background-color: #020617;\n  color: #f8fafc;\n}` }
-                ]
-            },
-            { id: 'app-js', name: 'app.js', type: 'file', lang: 'javascript', content: `// Core logic entrypoint\nexport function initialize() {\n  console.log("App loaded smoothly.");\n}` },
-            { id: 'styles-css', name: 'global.css', type: 'file', lang: 'css', content: `/* Core workspace presentation styling */\nbody {\n  background-color: #020617;\n  color: #f8fafc;\n}` }
-        ]
-    },
-    {
-        id: 'package-json',
-        name: 'package.json',
-        type: 'file',
-        lang: 'json',
-        content: `{\n  "name": "vue3-ai-editor",\n  "version": "1.0.0",\n  "private": true\n}`
-    }
-]

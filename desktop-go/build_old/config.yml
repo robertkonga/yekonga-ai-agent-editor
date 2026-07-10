@@ -1,0 +1,8 @@
+# build/config.yml (illustrative)
+info:
+  productName: "YE-CODE"
+  productIdentifier: "com.robertkonga.yecode"
+  productVersion: "1.0.0"
+  companyName: "Robert Konga"
+  productDescription: "An application built with Wails"
+  

@@ -14,7 +14,7 @@
             <!-- Chat history -->
             <div class="flex-1 overflow-y-auto p-3 space-y-4" ref="chatHistoryContainer">
                 <div v-for="(msg, idx) in messages" :key="idx" :class="[
-                    'flex flex-col max-w-[90%] rounded-xl p-3 text-xs leading-relaxed border',
+                    'flex flex-col max-w-[90%] rounded-xl p-3 text-lg leading-relaxed border',
                     msg.role === 'user'
                         ? 'ml-auto bg-slate-800 border-slate-700 text-slate-100'
                         : msg.role === 'tool'
@@ -25,7 +25,7 @@
                         :class="msg.role === 'user' ? 'text-indigo-300' : msg.role === 'tool' ? 'text-amber-500/70' : 'text-emerald-400'">
                         {{ msg.role === 'user' ? 'You' : msg.role === 'tool' ? 'Tool' : 'Agent' }}
                     </span>
-                    <p class="whitespace-pre-wrap text-[11px]">{{ msg.content }}</p>
+                    <div class="whitespace-pre-wrap text-sm" v-html="msg.content"></div>
                 </div>
 
                 <!-- Scaffold progress card -->
@@ -84,7 +84,7 @@
                     <div class="border border-gray-400/20 rounded-xl bg-slate-900 shadow-lg overflow-visible flex flex-col">
                         <div class="p-3">
                             <textarea v-model="userInput" placeholder="What's your next milestone?"
-                                class="w-full bg-transparent text-gray-200 placeholder-gray-600 resize-none outline-none min-h-[60px]"
+                                class="w-full bg-transparent leading-none text-gray-200 placeholder-gray-600 resize-none outline-none min-h-[60px]"
                                 @keydown.enter.exact.prevent="sendMessage"
                             ></textarea>
                         </div>
@@ -98,10 +98,10 @@
                                 <div class="relative min-w-0" ref="modelDropdownRef">
                                     <button
                                         type="button"
-                                        class="flex items-center gap-1.5 px-2 py-1 rounded-md border border-slate-700/60 bg-slate-800/60 text-[10px] text-slate-300 hover:text-slate-100 hover:border-slate-600 transition-all duration-150 max-w-[140px]"
+                                        class="flex items-center gap-1.5 px-2 py-1 rounded-md border border-slate-700/60 bg-slate-800/60 text-2 text-slate-300 hover:text-slate-100 hover:border-slate-600 transition-all duration-150 max-w-35"
                                         @click="providerModelDropdownOpen = !providerModelDropdownOpen"
                                     >
-                                        <span class="truncate font-mono">{{ selectedProvider }}</span>
+                                        <span class="truncate font-mono block leading-none">{{ selectedProvider }}</span>
                                         <svg class="shrink-0 text-slate-500 transition-transform duration-150"
                                             :class="{ 'rotate-180': providerModelDropdownOpen }"
                                             width="8" height="8" viewBox="0 0 10 10" fill="none">
@@ -120,7 +120,7 @@
                                             class="absolute bottom-full left-0 mb-1.5 z-50 min-w-45 rounded-lg border border-slate-700/80 bg-slate-900 shadow-xl shadow-black/40 overflow-hidden"
                                         >
                                             <div class="px-2 pt-2 pb-1 border-b border-slate-800/60">
-                                                <p class="text-[9px] font-semibold uppercase tracking-wider text-slate-500">
+                                                <p class=" font-semibold uppercase tracking-wider text-slate-500">
                                                     Select Provider
                                                 </p>
                                             </div>
@@ -138,7 +138,7 @@
                                                         @click="onProviderChange(group.value)"
                                                     >
                                                         <span class="flex flex-col min-w-0">
-                                                            <span class="text-[11px] font-mono truncate">{{ group.label }}</span>
+                                                            <span class=" truncate leading-none">{{ group.label }}</span>
                                                         </span>
                                                         <svg v-if="selectedProvider === group.value"
                                                             class="shrink-0 text-indigo-400" width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -155,10 +155,10 @@
                                 <div class="relative min-w-0" ref="modelDropdownRef">
                                     <button
                                         type="button"
-                                        class="flex items-center gap-1.5 px-2 py-1 rounded-md border border-slate-700/60 bg-slate-800/60 text-[10px] text-slate-300 hover:text-slate-100 hover:border-slate-600 transition-all duration-150 max-w-[140px]"
+                                        class="flex items-center gap-1.5 px-2 py-1 rounded-md border border-slate-700/60 bg-slate-800/60 text-slate-300 hover:text-slate-100 hover:border-slate-600 transition-all duration-150 max-w-[140px]"
                                         @click="modelDropdownOpen = !modelDropdownOpen"
                                     >
-                                        <span class="truncate font-mono">{{ selectedModel }}</span>
+                                        <span class="truncate font-mono leading-none">{{ selectedModel }}</span>
                                         <svg class="shrink-0 text-slate-500 transition-transform duration-150"
                                             :class="{ 'rotate-180': modelDropdownOpen }"
                                             width="8" height="8" viewBox="0 0 10 10" fill="none">
@@ -176,14 +176,14 @@
                                         <div v-if="modelDropdownOpen"
                                             class="absolute bottom-full left-0 mb-1.5 z-50 min-w-[180px] rounded-lg border border-slate-700/80 bg-slate-900 shadow-xl shadow-black/40 overflow-hidden"
                                         >
-                                            <div class="px-2 pt-2 pb-1 border-b border-slate-800/60">
-                                                <p class="text-[9px] font-semibold uppercase tracking-wider text-slate-500">
+                                            <div class="px-2 pt-2 pb-2 border-b border-slate-800/60">
+                                                <p class=" font-semibold uppercase leading-none tracking-wider text-slate-500">
                                                     {{ currentProvider?.label }} Models
                                                 </p>
                                             </div>
-                                            <div class="py-1 max-h-48 overflow-y-auto">
+                                            <div class="py-2 max-h-48 overflow-y-auto">
                                                 <template v-for="group in groupedModels" :key="group.group">
-                                                    <div v-if="group.group" class="px-2 pt-2 pb-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-600">
+                                                    <div v-if="group.group" class="px-2 pt-2 pb-0.5 leading-none  font-semibold uppercase tracking-wider text-slate-600">
                                                         {{ group.group }}
                                                     </div>
                                                     <button
@@ -192,7 +192,7 @@
                                                         type="button"
                                                         :disabled="m.disabled"
                                                         :class="[
-                                                            'w-full flex items-center justify-between gap-2 px-3 py-1.5 text-left transition-colors duration-100',
+                                                            'w-full flex items-center justify-between gap-2 px-3 py-2 text-left transition-colors duration-100',
                                                             selectedModel === m.value
                                                                 ? 'bg-indigo-500/20 text-indigo-300'
                                                                 : m.disabled
@@ -201,9 +201,9 @@
                                                         ]"
                                                         @click="onModelChange(m.value)"
                                                     >
-                                                        <span class="flex flex-col min-w-0">
-                                                            <span class="text-[11px] font-mono truncate">{{ m.label }}</span>
-                                                            <span v-if="m.description" class="text-[9px] text-slate-500 truncate">{{ m.description }}</span>
+                                                        <span class="flex flex-col min-w-0 ">
+                                                            <span class=" font-mono truncate leading-none mb-1">{{ m.label }}</span>
+                                                            <span v-if="m.description" class="text-sm text-slate-500 truncate leading-none">{{ m.description }}</span>
                                                         </span>
                                                         <svg v-if="selectedModel === m.value"
                                                             class="shrink-0 text-indigo-400" width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -251,7 +251,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useWorkspace } from '@/store/workspace'
 import { EventsOn, EventsOff } from '@wails/runtime/runtime'
-import { AgentChat, LoadConfigFromFile } from '@wails/go/main/App'
+import { AgentChat, LoadConfigFromFile, SaveConfigToFile } from '@wails/go/main/App'
 import { providerOptions, type ModelGroup, type ProviderConfig } from './ChatPanel'
 
 
@@ -266,14 +266,14 @@ interface ScaffoldProgress {
 }
 
 const props = defineProps<{
-    sessionId?: string
+    sessionId?: string | null
     small: boolean
 }>()
 
 const store = useWorkspace()
 
 const selectedProvider = ref<string>('ollama')
-const selectedModel    = ref<string>('qwen3:8b')
+const selectedModel    = ref<string>('qwen3:1.7b')
 const providerModelDropdownOpen = ref(false)
 const modelDropdownOpen = ref(false)
 const modelDropdownRef  = ref<HTMLElement | null>(null)
@@ -313,15 +313,24 @@ const groupedModels = computed<ModelGroup[]>(() =>
 )
 
 function onProviderChange(value: string) {
-    selectedProvider.value = value
+    selectedProvider.value = value;
+
     const p = providerOptions.find(p => p.value === value)
     if (p) selectedModel.value = p.defaultModel
     providerModelDropdownOpen.value = false
+
+    try {
+        SaveConfigToFile('DefaultProvider', value)
+    } catch {}
 }
 
 function onModelChange(value: string) {
     selectedModel.value = value
     modelDropdownOpen.value = false
+
+    try {
+        SaveConfigToFile('DefaultModel', value)
+    } catch {}
 }
 
 // Close model dropdown on outside click
@@ -351,7 +360,7 @@ const appendOrUpdateAssistant = (text: string) => {
 
 // ── Watch for session selection changes ──────────────────────────────────────
 
-watch(() => store.activeSessionId, (newId) => {
+watch(() => store.active?.sessionId, (newId) => {
     if (newId) {
         currentSessionID.value = newId;
         // Load the session's messages from the store (populated by selectSession)
@@ -361,17 +370,29 @@ watch(() => store.activeSessionId, (newId) => {
 
 // When the store loads new messages (from selectSession), update local messages
 watch(() => store.activeSessionMessages, (newMessages) => {
-    if (store.activeSessionId && newMessages.length > 0) {
+    if (store.active?.sessionId && newMessages.length > 0) {
         messages.value = [...newMessages];
     }
 }, { deep: true });
 
 // ── Wails events ─────────────────────────────────────────────────────────────
-
+ 
 onMounted(async () => {
     document.addEventListener('mousedown', onOutsideClick, true)
-    selectedProvider.value = await LoadConfigFromFile("DefaultProvider")
-    selectedModel.value = await LoadConfigFromFile("DefaultModel")
+
+    try {
+        selectedProvider.value = await LoadConfigFromFile("DefaultProvider")
+    } catch (error) {
+        console.warn(error);
+    }
+    try {
+        selectedModel.value = await LoadConfigFromFile("DefaultModel")
+    } catch (error) {
+        console.warn(error);        
+    }
+
+    store.selectSession(currentSessionID.value)
+    messages.value = [...store.activeSessionMessages];
 
     EventsOn('scaffold:progress', (p: ScaffoldProgress) => {
         if (p.error) {
@@ -388,7 +409,7 @@ onMounted(async () => {
                 role: 'assistant',
                 content: `✅ Done — ${p.total} file${p.total !== 1 ? 's' : ''} written successfully.`,
             })
-            scrollToBottom()
+            scrollToBottom() 
             return
         }
         scaffoldProgress.value.active = true
@@ -398,7 +419,7 @@ onMounted(async () => {
         if (p.file && p.file !== 'Contacting LLM…' && p.file !== 'Parsing plan…') {
             scaffoldProgress.value.files.push(p.file)
         }
-        scrollToBottom()
+        scrollToBottom() 
     })
 
     EventsOn('agent:message', (text: string) => {
@@ -407,7 +428,8 @@ onMounted(async () => {
     })
 
     EventsOn('agent:tool', (call: { name: string; input: string }) => {
-        messages.value.push({ role: 'tool', content: `🔧 ${call.name}` })
+        // console.log('Tool call:', call)
+        messages.value.push({ role: 'tool', content: `🔧 ${call.name} => ${call.input}` })
         scrollToBottom()
     })
 
@@ -465,3 +487,10 @@ const sendMessage = async () => {
     }
 }
 </script>
+
+<style lang="scss">
+think {
+    font-style: italic;
+    opacity: 0.5;
+}
+</style>

@@ -3,39 +3,39 @@
         <!-- Header -->
         <div class="flex h-9 items-center space-x-2 border-b border-slate-800/60 px-4 bg-slate-900/60 shrink-0">
             <i class="ye ye-folder-open text-indigo-400 text-sm"></i>
-            <span class="text-xs font-bold tracking-wider text-slate-200 uppercase">Generate Project</span>
+            <span class="text-sm font-bold tracking-wider text-slate-200 uppercase">Generate Project</span>
         </div>
 
         <!-- Form -->
         <form @submit.prevent="onSubmit" class="flex-1 overflow-y-auto p-5 space-y-5">
             <!-- Project Name -->
             <div>
-                <label class="block text-[11px] font-medium text-slate-400 mb-1.5">
+                <label class="block text-sm font-medium text-slate-400 mb-1.5">
                     Project Name <span class="text-red-400">*</span>
                 </label>
                 <input v-model="form.project_name" type="text" placeholder="e.g. my-awesome-app"
-                    class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors"
+                    class="w-full h-10 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors"
                     required />
             </div>
 
             <!-- Description -->
             <div>
-                <label class="block text-[11px] font-medium text-slate-400 mb-1.5">
+                <label class="block text-sm font-medium text-slate-400 mb-1.5">
                     Description <span class="text-red-400">*</span>
                 </label>
                 <textarea v-model="form.description" rows="3" placeholder="Detailed description of what the project does"
-                    class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors resize-none"
+                    class="w-full h-10 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors resize-none"
                     required></textarea>
             </div>
 
             <!-- Size & Complexity row -->
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-[11px] font-medium text-slate-400 mb-1.5">
+                    <label class="block text-sm font-medium text-slate-400 mb-1.5">
                         Size <span class="text-red-400">*</span>
                     </label>
                     <select v-model="form.size"
-                        class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500/60 transition-colors appearance-none cursor-pointer"
+                        class="w-full h-10 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-indigo-500/60 transition-colors appearance-none cursor-pointer"
                         required>
                         <option value="" disabled>Select size</option>
                         <option value="small">Small</option>
@@ -44,11 +44,11 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-[11px] font-medium text-slate-400 mb-1.5">
+                    <label class="block text-sm font-medium text-slate-400 mb-1.5">
                         Complexity <span class="text-red-400">*</span>
                     </label>
                     <select v-model="form.complexity"
-                        class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500/60 transition-colors appearance-none cursor-pointer"
+                        class="w-full h-10 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-indigo-500/60 transition-colors appearance-none cursor-pointer"
                         required>
                         <option value="" disabled>Select complexity</option>
                         <option value="low">Low</option>
@@ -60,70 +60,70 @@
 
             <!-- Framework -->
             <div>
-                <label class="block text-[11px] font-medium text-slate-400 mb-1.5">
+                <label class="block text-sm font-medium text-slate-400 mb-1.5">
                     Framework / Language <span class="text-slate-600">(optional)</span>
                 </label>
                 <input v-model="form.framework" type="text" placeholder="e.g. Go, Vue.js, Python Flask (auto-recommended if omitted)"
-                    class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors" />
+                    class="w-full h-10 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors" />
             </div>
 
             <!-- Modules -->
             <div>
-                <label class="block text-[11px] font-medium text-slate-400 mb-1.5">
+                <label class="block text-sm font-medium text-slate-400 mb-1.5">
                     Modules / Features <span class="text-red-400">*</span>
                 </label>
                 <input v-model="form.modules" type="text" placeholder="Comma-separated: auth, payments, dashboard, api"
-                    class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors"
+                    class="w-full h-10 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors"
                     required />
-                <p class="mt-1 text-[10px] text-slate-600">Comma-separated list of modules/features to include</p>
+                <p class="mt-1 text-sm text-slate-600">Comma-separated list of modules/features to include</p>
             </div>
 
             <!-- Features (detailed) -->
             <div>
-                <label class="block text-[11px] font-medium text-slate-400 mb-1.5">
+                <label class="block text-sm font-medium text-slate-400 mb-1.5">
                     Detailed Feature Requirements <span class="text-red-400">*</span>
                 </label>
                 <textarea v-model="form.features" rows="4" placeholder="Describe each module in detail: what it should do, key functionality, user interactions..."
-                    class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors resize-none"
+                    class="w-full h-10 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors resize-none"
                     required></textarea>
             </div>
 
             <!-- DB Tables row -->
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-[11px] font-medium text-slate-400 mb-1.5">
+                    <label class="block text-sm font-medium text-slate-400 mb-1.5">
                         Min DB Tables <span class="text-red-400">*</span>
                     </label>
                     <input v-model.number="form.db_tables_min" type="number" min="0" placeholder="1"
-                        class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors"
+                        class="w-full h-10 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors"
                         required />
                 </div>
                 <div>
-                    <label class="block text-[11px] font-medium text-slate-400 mb-1.5">
+                    <label class="block text-sm font-medium text-slate-400 mb-1.5">
                         Max DB Tables <span class="text-red-400">*</span>
                     </label>
                     <input v-model.number="form.db_tables_max" type="number" min="0" placeholder="10"
-                        class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors"
+                        class="w-full h-10 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors"
                         required />
                 </div>
             </div>
 
             <!-- Root Path -->
             <div>
-                <label class="block text-[11px] font-medium text-slate-400 mb-1.5">
+                <label class="block text-sm font-medium text-slate-400 mb-1.5">
                     Root Path <span class="text-red-400">*</span>
                 </label>
                 <div class="flex gap-2">
                     <input v-model="form.root_path" type="text" :placeholder="store.active?.path || '/path/to/project'"
-                        class="flex-1 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors font-mono"
+                        class="flex-1 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/60 transition-colors font-mono"
                         required />
                     <button type="button" @click="pickFolder"
-                        class="shrink-0 px-3 py-2 rounded-lg border border-slate-700/60 bg-slate-800 text-xs text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
+                        class="shrink-0 px-3 py-2 rounded-lg border border-slate-700/60 bg-slate-800 text-sm text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
                         title="Browse…">
                         <i class="ye ye-folder-open"></i>
                     </button>
                 </div>
-                <p v-if="store.active?.path" class="mt-1 text-[10px] text-slate-600">
+                <p v-if="store.active?.path" class="mt-1 text-sm text-slate-600">
                     Current workspace: {{ store.active.path }}
                 </p>
             </div>
@@ -134,7 +134,7 @@
                     <!-- Provider + Model pill selectors (reusing ChatPanel types) -->
                     <div class="relative" ref="providerDropdownRef">
                         <button type="button"
-                            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-slate-700/60 bg-slate-800/60 text-[10px] text-slate-300 hover:text-slate-100 hover:border-slate-600 transition-all"
+                            class="flex items-center gap-1.5 px-2.5 py-1.5 leading-none rounded-md border border-slate-700/60 bg-slate-800/60 text-sm text-slate-300 hover:text-slate-100 hover:border-slate-600 transition-all"
                             @click="providerOpen = !providerOpen"
                         >
                             <span>{{ selectedProviderLabel }}</span>
@@ -149,7 +149,7 @@
                                 <div class="py-1 max-h-48 overflow-y-auto">
                                     <button v-for="p in providerOptions" :key="p.value" type="button"
                                         :class="[
-                                            'w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors text-[11px]',
+                                            'w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors text-sm',
                                             selectedProvider === p.value
                                                 ? 'bg-indigo-500/20 text-indigo-300'
                                                 : 'text-slate-300 hover:bg-slate-800'
@@ -165,10 +165,10 @@
 
                     <div class="relative" ref="modelDropdownRef">
                         <button type="button"
-                            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-slate-700/60 bg-slate-800/60 text-[10px] text-slate-300 hover:text-slate-100 hover:border-slate-600 transition-all"
+                            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-slate-700/60 bg-slate-800/60 text-sm text-slate-300 hover:text-slate-100 hover:border-slate-600 transition-all"
                             @click="modelOpen = !modelOpen"
                         >
-                            <span class="max-w-[100px] truncate font-mono">{{ selectedModel }}</span>
+                            <span class="max-w-[100px] truncate font-mono leading-none ">{{ selectedModel }}</span>
                             <svg class="shrink-0 text-slate-500 transition-transform" :class="{ 'rotate-180': modelOpen }" width="7" height="7" viewBox="0 0 10 10" fill="none">
                                 <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
@@ -188,7 +188,7 @@
                                         <button v-for="m in group.models" :key="m.value" type="button"
                                             :disabled="m.disabled"
                                             :class="[
-                                                'w-full flex items-center justify-between gap-2 px-3 py-1.5 text-left transition-colors text-[11px]',
+                                                'w-full flex items-center justify-between gap-2 px-3 py-1.5 text-left transition-colors text-sm',
                                                 selectedModel === m.value
                                                     ? 'bg-indigo-500/20 text-indigo-300'
                                                     : m.disabled ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 hover:bg-slate-800'
@@ -207,7 +207,7 @@
                 </div>
 
                 <button type="submit" :disabled="submitting"
-                    class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium text-white transition-colors">
+                    class="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-white transition-colors">
                     <template v-if="submitting">
                         <svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
@@ -216,7 +216,7 @@
                         Generating…
                     </template>
                     <template v-else>
-                        <i class="ye ye-paper-plane text-xs"></i>
+                        <i class="ye ye-paper-plane text-sm"></i>
                         Generate Project
                     </template>
                 </button>
@@ -224,7 +224,7 @@
 
             <!-- Feedback message -->
             <p v-if="feedback" :class="[
-                'text-[11px] transition-opacity',
+                'text-sm transition-opacity',
                 feedback.type === 'success' ? 'text-emerald-400' : 'text-red-400'
             ]">{{ feedback.message }}</p>
         </form>

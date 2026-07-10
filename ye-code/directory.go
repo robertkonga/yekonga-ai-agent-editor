@@ -1,0 +1,429 @@
+package main
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"yekonga-builder/console"
+	"yekonga-builder/helper"
+	"yekonga-builder/types"
+)
+
+// OpenWorkspaceDialog triggers a native folder prompt and returns the selected route string
+func (a *Service) OpenWorkspaceDialog() (string, error) {
+	// options := runtime.OpenDialogOptions{
+	// 	Title:                "Select Project Workspace Root",
+	// 	CanCreateDirectories: true,
+	// 	// Filters out individual files so only directory folders are selectable
+	// }
+
+	// // This blocks thread execution until user clicks "Select" or "Cancel"
+	// selectedDirectory, err := runtime.OpenDirectoryDialog(a.ctx, options)
+	// if err != nil {
+	// 	return "", err
+	// }
+
+	// return selectedDirectory, nil
+
+	path, err := a.app.Dialog.OpenFile().
+		SetTitle("Select Project Workspace Root").
+		CanChooseDirectories(true).
+		CanChooseFiles(false).
+		PromptForSingleSelection()
+
+	if err != nil || path == "" {
+		return "", err
+	}
+
+	return path, nil
+}
+
+func (a *Service) CreateDirectory(target string) error {
+	return helper.CreateDirectory(target)
+}
+
+func (a *Service) SaveFile(data any, target string) error {
+	err := helper.CreateFile(data, target)
+
+	return err
+}
+
+func (a *Service) ReadFile(target string) (map[string]any, error) {
+
+	// 1. Get file information
+	fileInfo, err := os.Stat(target)
+	if err != nil {
+		console.Error(err.Error())
+	}
+
+	// 2. Extract the modification time
+	modificationTime := fileInfo.ModTime()
+
+	if !CanOpenInMonaco(target) {
+		return nil, fmt.Errorf("file cannot be opened in Monaco: %s", target)
+		// return map[string]any{
+		// 	"content":    fmt.Sprintf("file cannot be opened in Monaco: %s", target),
+		// 	"lastUpdate": modificationTime,
+		// }, nil
+	}
+
+	content := helper.ReadFile(target)
+
+	return map[string]any{
+		"content":    content,
+		"lastUpdate": modificationTime,
+	}, nil
+}
+
+func (a *Service) MoveFile(source string, destination string) error {
+	if err := os.Rename(source, destination); err != nil {
+		// os.Rename fails across devices/partitions — fallback to copy+delete
+		if err = a.CopyFile(source, destination); err != nil {
+			return err
+		}
+
+		return os.Remove(source)
+	}
+
+	return nil
+}
+
+func (a *Service) RenameFile(name string, source string) error {
+	dir := filepath.Dir(source)
+	dest := filepath.Join(dir, name)
+	if _, err := os.Stat(dest); !os.IsNotExist(err) {
+		return fmt.Errorf("file already exists: %s", dest)
+	}
+
+	return os.Rename(source, dest)
+}
+
+func (a *Service) DeleteFile(target string) error {
+	if _, err := os.Stat(target); os.IsNotExist(err) {
+		return fmt.Errorf("file not found: %s", target)
+	}
+
+	return os.RemoveAll(target) // handles both files and dirs
+}
+
+// CopyFile is the cross-device fallback used by MoveFile
+func (a *Service) CopyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	info, err := in.Stat()
+	if err != nil {
+		return err
+	}
+
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode())
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	return err
+}
+
+// ReadDirectory recursively scans the target path and returns a nested tree structure
+func (a *Service) ReadDirectory(rootPath string) (*types.FileNode, error) {
+	a.agent.ActivePath = rootPath
+
+	// Convert to absolute path to guarantee uniqueness across execution contexts
+	absPath, err := filepath.Abs(rootPath)
+	if err != nil {
+		return nil, err
+	}
+
+	cleanPath := filepath.Clean(absPath)
+	_, err = os.Stat(cleanPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Bootstrap the root directory node
+	rootNode := &types.FileNode{
+		ID:       generateID(cleanPath),
+		Name:     filepath.Base(cleanPath),
+		Path:     cleanPath,
+		Type:     "directory",
+		Expanded: true,
+		Children: []*types.FileNode{},
+	}
+
+	err = buildTree(cleanPath, rootNode)
+	if err != nil {
+		return nil, err
+	}
+
+	return rootNode, nil
+}
+
+func (a *Service) HomeDirectory(name string) string {
+	dir, err := os.UserHomeDir()
+	if err != nil {
+		console.Error("HomeDirectory", err.Error())
+	}
+
+	if dir == "/" || helper.IsEmpty(dir) {
+		dir = "/root"
+	}
+
+	appDir := dir + string(os.PathSeparator) + ".yekonga-server" + string(os.PathSeparator) + name
+
+	if info, err := os.Stat(appDir); err != nil {
+		if info != nil && !info.IsDir() {
+			os.MkdirAll(appDir, 0755)
+		} else {
+			err := os.MkdirAll(appDir, 0755)
+			if err != nil {
+				console.Error("HomeDirectory", appDir, err)
+			}
+		}
+	}
+
+	return appDir
+}
+
+// generateID creates a stable, non-plain-text hash from the file path
+func generateID(absolutePath string) string {
+	// Standardize path separators (slashes) so IDs are identical across Windows/Linux/macOS hosts
+	standardizedPath := filepath.ToSlash(absolutePath)
+
+	hash := sha256.Sum256([]byte(standardizedPath))
+
+	// Return a truncated 16-character hex string for clean frontend handling (or remove [:16] for full hash)
+	return hex.EncodeToString(hash[:])[:16]
+}
+
+// buildTree helper handles the recursive traversal with IDE sorting rules
+func buildTree(currentPath string, parentNode *types.FileNode) error {
+	entries, err := os.ReadDir(currentPath)
+	if err != nil {
+		return err
+	}
+
+	// SORTING LOGIC: Directories first, then files, both alphabetically
+	sort.Slice(entries, func(i, j int) bool {
+		// If one is a directory and the other isn't, prioritize the directory
+		if entries[i].IsDir() != entries[j].IsDir() {
+			return entries[i].IsDir() // Returns true if 'i' is a directory, pushing it up
+		}
+		// If both are directories OR both are files, sort alphabetically by lowercase name
+		return strings.ToLower(entries[i].Name()) < strings.ToLower(entries[j].Name())
+	})
+
+	// Process the sorted entries
+	for _, entry := range entries {
+		entryPath := filepath.Join(currentPath, entry.Name())
+
+		if !(strings.Contains(entryPath, "/node_modules/") ||
+			strings.Contains(entryPath, "/.build/") ||
+			strings.Contains(entryPath, "/.dist/") ||
+			strings.Contains(entryPath, "/.git/")) {
+			// 1. Get file information
+			fileInfo, err := os.Stat(entryPath)
+			if err != nil {
+				console.Error(err.Error())
+			}
+
+			node := &types.FileNode{
+				ID:         generateID(entryPath),
+				Name:       entry.Name(),
+				Path:       entryPath,
+				LastUpdate: fileInfo.ModTime(),
+			}
+
+			if entry.IsDir() {
+				node.Type = "directory"
+				node.Expanded = false
+				node.Children = []*types.FileNode{}
+
+				// Recursive dive
+				err := buildTree(entryPath, node)
+				if err != nil {
+					return err
+				}
+			} else {
+				node.Type = "file"
+				node.Extension = filepath.Ext(entry.Name())
+				node.Lang = detectLanguage(node.Extension)
+			}
+
+			parentNode.Children = append(parentNode.Children, node)
+		}
+
+	}
+
+	return nil
+}
+
+// Language extension dictionary cache
+var extensionMap = map[string]string{
+	// Web & Frontend
+	".js":   "javascript",
+	".jsx":  "javascript",
+	".ts":   "typescript",
+	".tsx":  "typescript",
+	".css":  "css",
+	".scss": "scss",
+	".less": "less",
+	".json": "json",
+	".html": "html",
+	".htm":  "html",
+	".vue":  "html", // Monaco fallback for SFC templates
+	".svg":  "xml",
+
+	// Backend & Mainstream Systems
+	".go":    "go",
+	".py":    "python",
+	".pyw":   "python",
+	".rs":    "rust",
+	".java":  "java",
+	".class": "java",
+	".cpp":   "cpp",
+	".cc":    "cpp",
+	".cxx":   "cpp",
+	".h":     "cpp",
+	".hpp":   "cpp",
+	".c":     "c",
+	".cs":    "csharp",
+	".rb":    "ruby",
+	".php":   "php",
+	".swift": "swift",
+	".kt":    "kotlin",
+	".kts":   "kotlin",
+
+	// Shell, Scripting & Configs
+	".sh":         "shell",
+	".bash":       "shell",
+	".zsh":        "shell",
+	".ps1":        "powershell",
+	".bat":        "bat",
+	".cmd":        "bat",
+	".yaml":       "yaml",
+	".yml":        "yaml",
+	".toml":       "toml",
+	".ini":        "ini",
+	".dockerfile": "dockerfile",
+
+	// Data, Query, & Documents
+	".sql": "sql",
+	".r":   "r",
+	".md":  "markdown",
+	".xml": "xml",
+	".csv": "plaintext",
+}
+
+// DetectLanguage matches file extensions to their Monaco code-highlighter target strings
+func detectLanguage(ext string) string {
+	// Standardize input string casing and dots
+	cleanedExt := strings.ToLower(strings.TrimSpace(ext))
+	if !strings.HasPrefix(cleanedExt, ".") && cleanedExt != "" {
+		cleanedExt = "." + cleanedExt
+	}
+
+	if lang, verified := extensionMap[cleanedExt]; verified {
+		return lang
+	}
+
+	return "plaintext"
+}
+
+var binaryExtensions = map[string]bool{
+	// Images
+	".jpg":  true,
+	".jpeg": true,
+	".png":  true,
+	".gif":  true,
+	".webp": true,
+	".bmp":  true,
+	".ico":  true,
+	".svg":  true,
+
+	// Fonts
+	".ttf":   true,
+	".otf":   true,
+	".woff":  true,
+	".woff2": true,
+	".eot":   true,
+
+	// Audio
+	".mp3":  true,
+	".wav":  true,
+	".ogg":  true,
+	".flac": true,
+	".aac":  true,
+
+	// Video
+	".mp4":  true,
+	".avi":  true,
+	".mov":  true,
+	".mkv":  true,
+	".webm": true,
+
+	// Archives
+	".zip": true,
+	".rar": true,
+	".7z":  true,
+	".tar": true,
+	".gz":  true,
+
+	// Executables / binaries
+	".exe":   true,
+	".dll":   true,
+	".so":    true,
+	".dylib": true,
+	".bin":   true,
+	".class": true,
+	".jar":   true,
+
+	// Documents
+	".pdf":  true,
+	".doc":  true,
+	".docx": true,
+	".xls":  true,
+	".xlsx": true,
+	".ppt":  true,
+	".pptx": true,
+}
+
+func IsEditableFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return !binaryExtensions[ext]
+}
+
+func IsBinaryFile(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return true
+	}
+	defer f.Close()
+
+	buf := make([]byte, 8000)
+	n, _ := f.Read(buf)
+
+	return bytes.IndexByte(buf[:n], 0) != -1
+}
+
+func CanOpenInMonaco(path string) bool {
+	if !IsEditableFile(path) {
+		return false
+	}
+
+	if IsBinaryFile(path) {
+		return false
+	}
+
+	return true
+}

@@ -35,15 +35,17 @@ export const providerOptions: ProviderConfig[] = [
             {
                 group: 'Qwen3',
                 models: [
-                    { label: 'qwen3:8b',  value: 'qwen3:8b',  description: '8B · fast' },
-                    { label: 'qwen3:14b', value: 'qwen3:14b', description: '14B · balanced' },
-                    { label: 'qwen3:32b', value: 'qwen3:32b', description: '32B · best quality' },
+                    { label: 'qwen3:1.7b',  value: 'qwen3:1.7b',  description: 'Lightweight assistants' },
+                    { label: 'qwen3:4b',  value: 'qwen3:4b',  description: 'Coding, chat, documents' },
+                    { label: 'qwen3:8b',  value: 'qwen3:8b',  description: 'General-purpose AI' },
+                    { label: 'qwen3:14b', value: 'qwen3:14b', description: 'Better reasoning & coding' },
+                    { label: 'qwen3:32b', value: 'qwen3:32b', description: 'Large dense model' },
                 ],
             },
             {
                 group: 'DeepSeek',
                 models: [
-                    { label: 'deepseek-r1:7b',  value: 'deepseek-r1:7b',  description: '7B · reasoning' },
+                    { label: 'deepseek-r1:8b',  value: 'deepseek-r1:8b',  description: '8B · reasoning' },
                     { label: 'deepseek-r1:14b', value: 'deepseek-r1:14b', description: '14B · reasoning' },
                     { label: 'deepseek-r1:32b', value: 'deepseek-r1:32b', description: '32B · reasoning' },
                 ],

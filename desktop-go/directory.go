@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -44,7 +45,6 @@ func (a *App) SaveFile(data any, target string) error {
 }
 
 func (a *App) ReadFile(target string) (map[string]any, error) {
-	content := helper.ReadFile(target)
 
 	// 1. Get file information
 	fileInfo, err := os.Stat(target)
@@ -54,6 +54,16 @@ func (a *App) ReadFile(target string) (map[string]any, error) {
 
 	// 2. Extract the modification time
 	modificationTime := fileInfo.ModTime()
+
+	if !CanOpenInMonaco(target) {
+		return nil, fmt.Errorf("file cannot be opened in Monaco: %s", target)
+		// return map[string]any{
+		// 	"content":    fmt.Sprintf("file cannot be opened in Monaco: %s", target),
+		// 	"lastUpdate": modificationTime,
+		// }, nil
+	}
+
+	content := helper.ReadFile(target)
 
 	return map[string]any{
 		"content":    content,
@@ -318,4 +328,92 @@ func detectLanguage(ext string) string {
 	}
 
 	return "plaintext"
+}
+
+var binaryExtensions = map[string]bool{
+	// Images
+	".jpg":  true,
+	".jpeg": true,
+	".png":  true,
+	".gif":  true,
+	".webp": true,
+	".bmp":  true,
+	".ico":  true,
+	".svg":  true,
+
+	// Fonts
+	".ttf":   true,
+	".otf":   true,
+	".woff":  true,
+	".woff2": true,
+	".eot":   true,
+
+	// Audio
+	".mp3":  true,
+	".wav":  true,
+	".ogg":  true,
+	".flac": true,
+	".aac":  true,
+
+	// Video
+	".mp4":  true,
+	".avi":  true,
+	".mov":  true,
+	".mkv":  true,
+	".webm": true,
+
+	// Archives
+	".zip": true,
+	".rar": true,
+	".7z":  true,
+	".tar": true,
+	".gz":  true,
+
+	// Executables / binaries
+	".exe":   true,
+	".dll":   true,
+	".so":    true,
+	".dylib": true,
+	".bin":   true,
+	".class": true,
+	".jar":   true,
+
+	// Documents
+	".pdf":  true,
+	".doc":  true,
+	".docx": true,
+	".xls":  true,
+	".xlsx": true,
+	".ppt":  true,
+	".pptx": true,
+}
+
+func IsEditableFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return !binaryExtensions[ext]
+}
+
+func IsBinaryFile(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return true
+	}
+	defer f.Close()
+
+	buf := make([]byte, 8000)
+	n, _ := f.Read(buf)
+
+	return bytes.IndexByte(buf[:n], 0) != -1
+}
+
+func CanOpenInMonaco(path string) bool {
+	if !IsEditableFile(path) {
+		return false
+	}
+
+	if IsBinaryFile(path) {
+		return false
+	}
+
+	return true
 }

@@ -101,7 +101,7 @@ func (a *Agent) AgentChat(sessionID string, userMessage string, providerName str
 
 	// 2. Select selectedProvider
 	var selectedProvider provider.LLMProvider
-	switch session.Provider {
+	switch providerName {
 	case "anthropic":
 		selectedProvider = provider.NewAnthropicProvider(a.AnthropicApiKey, modelName)
 	case "gemini":
@@ -112,7 +112,7 @@ func (a *Agent) AgentChat(sessionID string, userMessage string, providerName str
 		selectedProvider = provider.NewOllamaProviderWithURL(modelName, a.OllamaHost)
 	}
 
-	console.Log("deepSeekBaseURL", selectedProvider)
+	console.Log("create.selectedProvider", selectedProvider)
 	// 3. Append user message
 	session.History = append(session.History, types.ChatMessage{
 		Role:    "user",
@@ -134,6 +134,8 @@ func (a *Agent) AgentChat(sessionID string, userMessage string, providerName str
 
 		// Stream text to frontend
 		if resp.Content != "" {
+			console.Log("agent:message", resp.Content)
+			console.Log("agent:message", resp.ToolCalls)
 			runtime.EventsEmit(*a.ctx, "agent:message", resp.Content)
 		}
 

@@ -18,6 +18,14 @@ export function DeleteFile(arg1) {
   return window['go']['main']['App']['DeleteFile'](arg1);
 }
 
+export function GetGitCommitDetail(arg1, arg2) {
+  return window['go']['main']['App']['GetGitCommitDetail'](arg1, arg2);
+}
+
+export function GetGitLog(arg1) {
+  return window['go']['main']['App']['GetGitLog'](arg1);
+}
+
 export function GetSession(arg1) {
   return window['go']['main']['App']['GetSession'](arg1);
 }
@@ -28,6 +36,10 @@ export function Greet(arg1) {
 
 export function HomeDirectory(arg1) {
   return window['go']['main']['App']['HomeDirectory'](arg1);
+}
+
+export function ImageToBase64(arg1) {
+  return window['go']['main']['App']['ImageToBase64'](arg1);
 }
 
 export function ListIcons() {
@@ -74,6 +86,10 @@ export function RenameFile(arg1, arg2) {
   return window['go']['main']['App']['RenameFile'](arg1, arg2);
 }
 
+export function ReplaceInFiles(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ReplaceInFiles'](arg1, arg2, arg3);
+}
+
 export function SaveAPIKey(arg1, arg2) {
   return window['go']['main']['App']['SaveAPIKey'](arg1, arg2);
 }
@@ -88,4 +104,8 @@ export function SaveFile(arg1, arg2) {
 
 export function SaveOllamaHost(arg1) {
   return window['go']['main']['App']['SaveOllamaHost'](arg1);
+}
+
+export function SearchInFiles(arg1, arg2) {
+  return window['go']['main']['App']['SearchInFiles'](arg1, arg2);
 }

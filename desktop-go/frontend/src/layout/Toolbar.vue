@@ -1,21 +1,23 @@
 <template>
     <!-- [app-region:drag] is a Tailwind arbitrary property for Electron drag -->
-    <div class="flex h-8 select-none items-center justify-between font-sans text-xs [--wails-draggable:drag]"
+    <div class="flex h-8 border-b select-none items-center justify-between font-sans text-xs [--wails-draggable:drag]"
         :class="[
             isMaximized ? 'bg-slate-900' : 'bg-slate-900',
             {
-                'border-b border-slate-700/20': (store.active && store.active.viewMode == 'EDITOR')
+                'border-slate-700/20': (store.active && store.active.viewMode == 'EDITOR'),
+                'border-transparent': (!store.active || (store.active && store.active.viewMode != 'EDITOR')),
             }
         ]" >
         <!-- Drag region + title -->
-        <div class="flex h-full min-w-0 flex-1 items-center overflow-hidden pl-2 [app-region:drag] space-x-6">
+        <div class="flex h-full min-w-0 flex-1 items-center overflow-hidden pl-2 [app-region:drag] space-x-3">
+            <img src="@/assets/appicon.png" class="h-4 w-auto"/>
             <span v-if="showTitle" class="truncate font-normal text-[#cccccc]/85">
                 {{ title }}
             </span>
             <template v-if="store.active && store.active.viewMode != 'WORKSPACE'">
                 <button type="button" title="Minimize" aria-label="Minimize window"
                     class="px-4 flex font-semibold h-full w-auto cursor-pointer items-center justify-center border-none bg-transparent p-0 text-blue-500 outline-none transition-colors duration-120 hover:bg-white/10 focus-visible:outline  focus-visible:outline-white/40 focus-visible:-outline-offset-2"
-                    @click="store.setViewMode('WORKSPACE')">
+                    @click="store.setViewMode(null)">
                     Workspaces
                 </button>
             </template>
@@ -35,14 +37,15 @@
                     <button type="button" title="Minimize" aria-label="Minimize window"
                         class="px-4 flex font-semibold h-full w-auto cursor-pointer items-center justify-center border-none bg-indigo-900 p-0 text-[#cccccc] outline-none transition-colors duration-120 hover:bg-white/10 focus-visible:outline  focus-visible:outline-white/40 focus-visible:-outline-offset-2"
                         @click="store.setViewMode('AGENT')">
-                        Agent
+                        <!-- <i class="ye ye-microchip-ai ye-lg"></i> -->
+                        <span>Agent</span>
                     </button>
                 </template>
             </template>
             <button @click="showSetting = !showSetting" type="button" title="Minimize" aria-label="Minimize window"
                 class="px-3 flex font-semibold h-full w-auto cursor-pointer items-center justify-center border-none bg-transparent p-0 text-[#cccccc] outline-none transition-colors duration-120 hover:bg-white/10 focus-visible:outline  focus-visible:outline-white/40 focus-visible:-outline-offset-2"
                 >
-                <i class="ye ye-gear"></i>
+                <i class="ye ye-gear ye-lg"></i>
             </button>
             <div class="border-r border-slate-800/60"></div>
             <!-- Minimize -->
@@ -103,7 +106,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    title: 'Yekonga Editor',
+    title: 'YE-CODE',
     isMaximized: false,
     showTitle: true,
 })

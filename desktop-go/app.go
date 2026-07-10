@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"sync"
 	"yekonga-builder/agent"
+	"yekonga-builder/helper"
 	"yekonga-builder/icons"
 )
 
@@ -117,6 +118,10 @@ func (a *App) LoadOllamaHost() (string, error) {
 	return a.LoadConfigFromFile(key)
 }
 
+func (a *App) ImageToBase64(path string) (string, error) {
+	return helper.ImageToBase64(path)
+}
+
 // encryptionKey must be exactly 16, 24, or 32 bytes long to select
 // AES-128, AES-192, or AES-256.
 // KEEP THIS SECRET. Do not share this key outside your compiled app.
@@ -195,6 +200,7 @@ func (a *App) LoadConfigFromFile(key string) (string, error) {
 	value, exists := configMap[key]
 	if !exists {
 		return "", fmt.Errorf("key '%s' not found", key)
+		// return "", nil
 	}
 
 	return value, nil

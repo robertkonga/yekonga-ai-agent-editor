@@ -67,6 +67,116 @@ export namespace icons {
 
 }
 
+export namespace main {
+	
+	export class GitCommit {
+	    hash: string;
+	    author: string;
+	    date: string;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GitCommit(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hash = source["hash"];
+	        this.author = source["author"];
+	        this.date = source["date"];
+	        this.message = source["message"];
+	    }
+	}
+	export class GitFileChange {
+	    path: string;
+	    status: string;
+	    patch: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GitFileChange(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.status = source["status"];
+	        this.patch = source["patch"];
+	    }
+	}
+	export class GitCommitDetail {
+	    hash: string;
+	    author: string;
+	    date: string;
+	    message: string;
+	    files: GitFileChange[];
+	
+	    static createFrom(source: any = {}) {
+	        return new GitCommitDetail(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hash = source["hash"];
+	        this.author = source["author"];
+	        this.date = source["date"];
+	        this.message = source["message"];
+	        this.files = this.convertValues(source["files"], GitFileChange);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class ReplaceResult {
+	    file: string;
+	    success: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReplaceResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.file = source["file"];
+	        this.success = source["success"];
+	        this.error = source["error"];
+	    }
+	}
+	export class SearchResult {
+	    file: string;
+	    line: number;
+	    content: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SearchResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.file = source["file"];
+	        this.line = source["line"];
+	        this.content = source["content"];
+	    }
+	}
+
+}
+
 export namespace types {
 	
 	export class ChatMessage {

@@ -31,7 +31,30 @@
 
         <div class="relative flex-1 bg-slate-950">
             <template v-if="store.active?.activeFile">
-                <div ref="editorContainer" class="h-full"></div>
+                <template v-if="$isImage(store.active?.activeFile.path)">
+                    <div class="flex w-full h-full justify-center items-center p-5">
+                        <img :src="`${imageToBase64}`" alt="Image Preview" class="max-w-full max-h-full object-contain" />
+                    </div>
+                </template>
+                <template v-else-if="$isVideo(store.active?.activeFile.path)">
+                    <div class="flex w-full h-full justify-center items-center p-5">
+                        <video controls autoplay muted loop class="w-full h-full object-contain">
+                            <source :src="`${imageToBase64}`" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                </template>
+                <template v-else-if="$isAudio(store.active?.activeFile.path)">
+                    <div class="flex w-full h-full justify-center items-center p-5">
+                        <audio controls class="w-full h-full object-contain">
+                            <source :src="`${imageToBase64}`" type="audio/mpeg">
+                            Your browser does not support the audio tag.
+                        </audio>
+                    </div>
+                </template>
+                <template v-else>
+                    <div ref="editorContainer" class="h-full"></div>
+                </template>
             </template>
             <template v-else>
                 <div class="flex items-center justify-center bg-slate-900 w-full h-full">
@@ -43,9 +66,9 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, inject, onMounted, onBeforeUnmount, watch, type Ref } from 'vue';
+import { ref, inject, onMounted, onBeforeUnmount, watch, type Ref, computed } from 'vue';
 import * as monaco from 'monaco-editor';
-import { SaveFile } from '@wails/go/main/App';
+import { ImageToBase64, SaveFile } from '@wails/go/main/App';
 import { useWorkspace, type FileNode } from '@/store/workspace';
 import OpenTabs from './parts/OpenTabs.vue';
 
@@ -61,7 +84,8 @@ const props = defineProps({
 const store = useWorkspace();
 
 const editorContainer = ref(null);
-const getFileColorClass = inject("getFileColorClass") as (lang: any) => "bg-slate-400" | "bg-yellow-400" | "bg-blue-400" | "bg-emerald-400";
+const imageToBase64 = ref<string | null>(null);
+
 let editor: monaco.editor.IStandaloneCodeEditor | null = null;
 
 const runCode = () => {
@@ -75,8 +99,8 @@ const saveFileContent = (content?: any) => {
     
     if (store.active && store.active.activeFile && (content !== store.active.activeFile.content)) {
         if(store.active.activeFile.path) {
-            SaveFile(content, store.active.activeFile.path)
-            store.trackChange(store.active.activeFile)
+            SaveFile(content, store.active.activeFile.path);
+            store.trackChange(store.active.activeFile);
         }
     }
 }
@@ -98,7 +122,7 @@ const setEditor = () => {
         }
 
         if(store.active && store.active.activeFile) {
-            editor.setValue(store.active.activeFile.content || "")
+            editor.setValue(store.active.activeFile.content || "");
             monaco.editor.setModelLanguage(editor!.getModel() as monaco.editor.ITextModel, store.active.activeFile.lang || "text");
         }
 
@@ -111,14 +135,10 @@ const setEditor = () => {
 
         // Save modifications back to file system references reactively
         editor.onDidChangeModelContent(() => {
-            if(editor) { 
-                if (store.active!.activeFile) {
-                    setTimeout(()=>{
-                        // console.log("editor!.getValue()", editor!.getValue());
-
-                        store.storeFileState(store.active!.activeFile!, editor);
-                    }, 1000)
-                }
+            const file = window.copy(store.active!.activeFile);
+            
+            if(editor && file) { 
+                store.storeFileState(file, editor);
             }
         }); 
     }
@@ -136,12 +156,31 @@ const destroyEditor = () => {
     }
 }
 
+const loadImageToBase64 = async () => {
+    if(
+        store.active 
+        && store.active.activeFile 
+        && (
+            window.isImage(store.active.activeFile.path)
+            || window.isVideo(store.active.activeFile.path)
+            || window.isAudio(store.active.activeFile.path)
+        )
+    ) {
+        try {
+            const base64 = await ImageToBase64(store.active.activeFile.path || '');
+            imageToBase64.value = base64;
+        } catch (error) {
+            console.error("Failed to convert image to base64:", error);
+        }
+    }
+}
+
 const loadOpenContent = async () => {
     try {
         await store.openFile(store.active!.activeFile!, editor)
     } catch (error) {}
 
-    setEditor()
+    resetEditor()
 }
 
 onMounted(() => {
@@ -186,12 +225,12 @@ watch(() => props.language, (newLang) => {
 
 watch(() => ((store.active && store.active.activeFile)? store.active!.activeFile.id || null: null), (v2, v1) => {
     // console.log("watch", 3); 
+    loadImageToBase64();
 
     // Safely update monaco model definitions
     if (v2 != v1) {
         // console.log("watch:loaded", v2);
-        
-        if(!v2){
+        if(!!!(v2)){
             destroyEditor();
         } else {
             loadOpenContent();
@@ -202,6 +241,7 @@ watch(() => ((store.active && store.active.activeFile)? store.active!.activeFile
 window.addEventListener("resize", () => {
     resetEditor();
 })
+
 </script>
 
 <style scoped>
