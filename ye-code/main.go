@@ -2,11 +2,13 @@ package main
 
 import (
 	"embed"
+	"image/color"
 
 	"log"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/services/dock"
 )
 
 // Wails uses Go's `embed` package to embed the frontend files into the binary.
@@ -17,7 +19,7 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-//go:embed frontend/dist/appicon.png
+//go:embed appicon.png
 var icon []byte
 
 func init() {
@@ -32,6 +34,20 @@ func init() {
 // logs any error that might occur.
 func main() {
 
+	// Create a dock service with custom badge options
+	options := dock.BadgeOptions{
+		TextColour:       color.RGBA{255, 255, 255, 255}, // White text
+		BackgroundColour: color.RGBA{0, 0, 255, 255},     // Blue background
+		FontName:         "consolab.ttf",                 // Bold Consolas font
+		FontSize:         20,                             // Font size for single character
+		SmallFontSize:    14,                             // Font size for multiple characters
+	}
+
+	dockService := dock.NewWithOptions(options)
+	// Show the app icon
+	dockService.ShowAppIcon()
+	dockService.SetCustomBadge("New", options)
+
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
@@ -43,6 +59,7 @@ func main() {
 		Description: "A demo of using raw HTML & CSS",
 		Services: []application.Service{
 			application.NewService(service),
+			application.NewService(dockService),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -52,11 +69,15 @@ func main() {
 		},
 	})
 
+	app.SetIcon(icon)
 	service.startup(app)
 
 	systray := app.SystemTray.New()
 	systray.SetIcon(icon)
 	systray.SetLabel("YE-CODE")
+
+	// Show the app icon
+	dockService.ShowAppIcon()
 
 	// Create a new window with the necessary options.
 	// 'Title' is the title of the window.
@@ -66,10 +87,14 @@ func main() {
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "YE-CODE",
 		// Window sized to the golden ratio (1000 / 618 ≈ 1.618).
-		Width:          1000,
-		Height:         618,
-		Frameless:      true,
+		Width:     1000,
+		Height:    618,
+		Frameless: true,
+
 		BackgroundType: application.BackgroundTypeTransparent,
+		Linux: application.LinuxWindow{
+			Icon: icon, // PNG bytes, not scaled — provide at natural size
+		},
 		Windows: application.WindowsWindow{
 			DisableFramelessWindowDecorations: false,
 		},
